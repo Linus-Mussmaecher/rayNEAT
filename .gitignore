@@ -1,0 +1,3 @@
+# Project exclude paths
+/build/x64_rayNEAT_debug/
+/build/x64_rayNEAT_release/
