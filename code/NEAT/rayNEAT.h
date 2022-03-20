@@ -10,12 +10,14 @@
 
 #include <cmath>
 #include "vector"
+#include "list"
 #include "array"
 #include "map"
 #include "string"
+#include <iostream>
 
 
-using std::vector, std::array, std::map, std::string;
+using std::vector, std::array, std::map, std::string, std::list, std::pair;
 
 //forward declarations
 struct NeatInstance;

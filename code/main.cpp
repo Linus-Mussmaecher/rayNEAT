@@ -15,10 +15,10 @@ int main() {
     for (Network &n1: networks) {
         n1.setFitness(0);
         n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
         n1.mutateAddNode(&neatInstance);
         n1.mutateAddConnection(&neatInstance);
         n1.mutateAddConnection(&neatInstance);
+        n1.mutateAddNode(&neatInstance);
         n1.mutateAddConnection(&neatInstance);
         n1.mutateAddConnection(&neatInstance);
         n1.mutateAddConnection(&neatInstance);

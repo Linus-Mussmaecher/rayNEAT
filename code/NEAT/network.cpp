@@ -3,7 +3,6 @@
 //
 
 
-#include <iostream>
 #include "rayNEAT.h"
 
 Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_count),
@@ -46,16 +45,24 @@ void Network::mutateAddNode(NeatInstance *neatInstance) {
 
 
 void Network::mutateAddConnection(NeatInstance *neatInstance) {
-    //generate a random start node that may not be an output node
-    int start_index = GetRandomValue(0, int(node_values.size() - 1 - output_count));
-    if (start_index >= input_count && start_index < input_count + output_count) start_index += output_count;
-    node_id  start = std::next(node_values.begin(), start_index)->first;
-    //generate a random end node that may not be an input node
-    node_id end = std::next(node_values.begin(), GetRandomValue(input_count, int(node_values.size() - 1)))->first;
-    //check if the connection is already in the network
-    if (std::none_of(connections.begin(), connections.end(), [start, end](const Connection &c) {
-        return c.gene.start == start && c.gene.end == end;
-    })) {
+
+    //generate adjacency matrix
+    bool adj[neatInstance->node_count][neatInstance->node_count];
+    for(const Connection &c : connections){
+        adj[c.gene.start][c.gene.end] = true;
+    }
+    //iterate over adjacency matrix to find valid candidates
+    vector<pair<node_id , node_id >> candidates;
+    for(int i = 0; i < neatInstance->node_count; i++){
+        for(int j = 0; j < neatInstance->node_count; j++){
+            if(!adj[i][j] && j >= input_count && (i < input_count || i > input_count + output_count) && node_values.contains(i) && node_values.contains(j)){
+                candidates.emplace_back(i,j);
+            }
+        }
+    }
+    //if at least 1 candidate exists, randomly select one to add to the network
+    if(!candidates.empty()) {
+        auto &[start, end] = candidates[GetRandomValue(0, int(candidates.size() - 1))];
         addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
     }
 }
