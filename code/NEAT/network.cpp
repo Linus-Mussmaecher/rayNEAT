@@ -48,20 +48,21 @@ void Network::mutateAddConnection(NeatInstance *neatInstance) {
 
     //generate adjacency matrix
     bool adj[neatInstance->node_count][neatInstance->node_count];
-    for(const Connection &c : connections){
+    for (const Connection &c: connections) {
         adj[c.gene.start][c.gene.end] = true;
     }
     //iterate over adjacency matrix to find valid candidates
-    vector<pair<node_id , node_id >> candidates;
-    for(int i = 0; i < neatInstance->node_count; i++){
-        for(int j = 0; j < neatInstance->node_count; j++){
-            if(!adj[i][j] && j >= input_count && (i < input_count || i > input_count + output_count) && node_values.contains(i) && node_values.contains(j)){
-                candidates.emplace_back(i,j);
+    vector<pair<node_id, node_id >> candidates;
+    for (int i = 0; i < neatInstance->node_count; i++) {
+        for (int j = 0; j < neatInstance->node_count; j++) {
+            if (!adj[i][j] && j >= input_count && (i < input_count || i > input_count + output_count) &&
+                node_values.contains(i) && node_values.contains(j)) {
+                candidates.emplace_back(i, j);
             }
         }
     }
     //if at least 1 candidate exists, randomly select one to add to the network
-    if(!candidates.empty()) {
+    if (!candidates.empty()) {
         auto &[start, end] = candidates[GetRandomValue(0, int(candidates.size() - 1))];
         addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
     }
@@ -209,6 +210,47 @@ void Network::print() const {
         std::cout << "\t" << c.gene.innovation << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight
                   << "\n";
     }
+}
+
+float Network::getCompatibilityDistance(Network a, Network b) {
+    float N = float(std::max(a.connections.size(), b.connections.size()));
+    if (N < 20) N = 1;
+    float E = 0; //number of eccess genes
+    float D = 0; //number of disjoint genes
+    float M = 0; //number of matching genes
+    float W = 0; //sum of weight differences of matching genes
+
+    int i = 0;
+    int j = 0;
+    while (i < a.connections.size() || j < b.connections.size()) {
+        if (i < a.connections.size() && j < b.connections.size() &&
+            a.connections[i].gene == b.connections[j].gene) {
+            //a matching gene has been found
+            M++;
+            W += abs(a.connections[i].weight - b.connections[j].weight);
+            i++;
+            j++;
+
+        } else if (j >= b.connections.size()) {
+            //excess gene of a
+            E++;
+            i++;
+        } else if (i < a.connections.size() && a.connections[i].gene.innovation < b.connections[j].gene.innovation) {
+            //disjoint gene of a
+            D++;
+            i++;
+        } else if (i >= a.connections.size()) {
+            //excess gene of b
+            E++;
+            j++;
+        } else if (j < b.connections.size() && a.connections[i].gene.innovation > b.connections[j].gene.innovation) {
+            //disjoint gene of b
+            D++;
+            j++;
+        }
+    }
+
+    return 1.f * E / N + 1.f * D / N + 0.4f * W / M;
 }
 
 

@@ -12,8 +12,9 @@ int main() {
         networks.emplace_back(&neatInstance);
     }
 
+    int f = 0;
     for (Network &n1: networks) {
-        n1.setFitness(0);
+        n1.setFitness(f++);
         n1.mutateAddConnection(&neatInstance);
         n1.mutateAddNode(&neatInstance);
         n1.mutateAddConnection(&neatInstance);
@@ -28,7 +29,7 @@ int main() {
     networks[3].print();
     networks[4].print();
 
-    Network nextWork = Network::reproduce(&neatInstance, networks[3], networks[4]);
+    Network nextWork = Network::reproduce(&neatInstance, Network::reproduce(&neatInstance, networks[3], networks[4]), Network::reproduce(&neatInstance, networks[1], networks[2]));
     nextWork.print();
 
     nextWork.setInputs({0.4f, -0.9f, 0.2f, 0.2f});

@@ -81,6 +81,8 @@ public:
 
     void print() const;
 
+    static float getCompatibilityDistance(Network a, Network b);
+
 private:
     //vector of all connections in this network
     vector<Connection> connections;
