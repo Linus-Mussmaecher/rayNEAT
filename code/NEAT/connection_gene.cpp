@@ -5,6 +5,14 @@
 
 #include "rayNEAT.h"
 
-bool operator==(Connection_Gene a, Connection_Gene b){
+bool operator==(Connection_Gene a, Connection_Gene b) {
     return a.innovation == b.innovation;
+}
+
+bool operator<(Connection_Gene a, Connection_Gene b) {
+    return a.innovation < b.innovation;
+}
+
+bool operator>(Connection_Gene a, Connection_Gene b) {
+    return a.innovation > b.innovation;
 }

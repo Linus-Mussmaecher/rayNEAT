@@ -4,41 +4,18 @@
 int main() {
     SetRandomSeed(clock());
 
-    NeatInstance neatInstance = {.input_count = 4, .output_count = 3, .node_count =  7};
+    NeatInstance neatInstance = {.input_count = 3, .output_count = 1, .node_count =  4};
+    neatInstance.initialize(100);
+    neatInstance.runNeat([](Network n){
+        float res = 0;
+        for(int a = 0; a < 2; a++){
+            for(int b = 0; b < 2; b++){
+                n.setInputs({float(a), float(b), 1.f});
+                n.calculateOutputs();
+                res += abs(n.getOutputs()[0] - float(a ^ b));
+            }
+        }
+        return int((4.f - res)*(4.f - res) * 100);
+    });
 
-    vector<Network> networks;
-    networks.reserve(16);
-    for (int i = 0; i < 5; i++) {
-        networks.emplace_back(&neatInstance);
-    }
-
-    int f = 0;
-    for (Network &n1: networks) {
-        n1.setFitness(f++);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddNode(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddNode(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateAddConnection(&neatInstance);
-        n1.mutateWeights();
-    }
-
-    networks[3].print();
-    networks[4].print();
-
-    Network nextWork = Network::reproduce(&neatInstance, Network::reproduce(&neatInstance, networks[3], networks[4]), Network::reproduce(&neatInstance, networks[1], networks[2]));
-    nextWork.print();
-
-    nextWork.setInputs({0.4f, -0.9f, 0.2f, 0.2f});
-    nextWork.calculateOutputs();
-    std::cout << "Outputs: ";
-    for(float op : nextWork.getOutputs()){
-        std::cout << op << " ";
-    }
-
-
-    return 0;
 }

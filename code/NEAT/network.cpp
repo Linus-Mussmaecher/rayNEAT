@@ -18,6 +18,20 @@ Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_c
 }
 
 
+
+void Network::mutate(NeatInstance *neatInstance) {
+    if(GetRandomValue(0, 99) < 80){
+        mutateWeights();
+    }
+    if(GetRandomValue(0, 99) < 3){
+        mutateAddNode(neatInstance);
+    }
+    if(GetRandomValue(0, 99) < 5){
+        mutateAddConnection(neatInstance);
+    }
+}
+
+
 void Network::mutateWeights() {
     for (Connection &c: connections) {
         if (GetRandomValue(0, 9) == 0) {
@@ -46,24 +60,34 @@ void Network::mutateAddNode(NeatInstance *neatInstance) {
 
 void Network::mutateAddConnection(NeatInstance *neatInstance) {
 
-    //generate adjacency matrix
-    bool adj[neatInstance->node_count][neatInstance->node_count];
-    for (const Connection &c: connections) {
-        adj[c.gene.start][c.gene.end] = true;
-    }
-    //iterate over adjacency matrix to find valid candidates
-    vector<pair<node_id, node_id >> candidates;
-    for (int i = 0; i < neatInstance->node_count; i++) {
-        for (int j = 0; j < neatInstance->node_count; j++) {
-            if (!adj[i][j] && j >= input_count && (i < input_count || i > input_count + output_count) &&
-                node_values.contains(i) && node_values.contains(j)) {
-                candidates.emplace_back(i, j);
+    list<node_id> start_candidates;
+    std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates), [](auto &pair){return pair.first;});
+    start_candidates.remove_if([neatInstance](node_id n){return n >= neatInstance->input_count && n < neatInstance->input_count + neatInstance->output_count;});
+
+    list<node_id> end_candidates;
+    std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates), [](auto &pair){return pair.first;});
+    end_candidates.remove_if([neatInstance](node_id n){return n < neatInstance->input_count;});
+
+    bool found = false;
+    node_id start;
+    node_id end;
+
+    while (!found && !start_candidates.empty()){
+        start = *std::next(start_candidates.begin(), GetRandomValue(0, int(start_candidates.size() - 1)));
+        for(Connection &c : connections){
+            if(c.gene.start == start){
+                end_candidates.remove(c.gene.end);
             }
         }
+        if(!end_candidates.empty()){
+            found = true;
+            end = *std::next(end_candidates.begin(), GetRandomValue(0, int(end_candidates.size() - 1)));
+        }else{
+            start_candidates.remove(start);
+        }
     }
-    //if at least 1 candidate exists, randomly select one to add to the network
-    if (!candidates.empty()) {
-        auto &[start, end] = candidates[GetRandomValue(0, int(candidates.size() - 1))];
+
+    if(found){
         addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
     }
 }
@@ -117,9 +141,10 @@ Network Network::reproduce(NeatInstance *neatInstance, Network mother, Network f
 
         } else if (j >= father.connections.size() ||
                    (i < mother.connections.size()
-                    && mother.connections[i].gene.innovation < father.connections[j].gene.innovation)) {
+                    && mother.connections[i].gene < father.connections[j].gene)) {
             //father has iterated to the end, so we are in mothers excess genes
-            //OR mother is still viable, father is still viable (we have not short-circuited the first expression) and mother has the lower innovation number -> we are in mothers disjoint genes
+            //OR mother is still viable, father is still viable (we have not short-circuited the first expression) and mother has the lower innovation number
+            // -> we are in mothers disjoint genes
 
             //excess genes in mother OR disjoint gens in mother are taken if mother fitness >= father fitness
             if (mother.fitness >= father.fitness) {
@@ -129,7 +154,7 @@ Network Network::reproduce(NeatInstance *neatInstance, Network mother, Network f
 
         } else if (i >= mother.connections.size() ||
                    (j < father.connections.size() &&
-                    mother.connections[i].gene.innovation > father.connections[j].gene.innovation)) {
+                    mother.connections[i].gene > father.connections[j].gene)) {
 
             //excess genes in father OR disjoint genes in father are taken if father fitness >= mother fitness
             if (mother.fitness <= father.fitness) {
@@ -178,12 +203,12 @@ void Network::calculateNodeValue(node_id node) {
     node_values[node] = sigmoid(weight_sum);
 }
 
-unsigned int Network::getFitness() const {
+float Network::getFitness() const {
     return fitness;
 }
 
-void Network::setFitness(unsigned int fitness_p) {
-    Network::fitness = fitness_p;
+void Network::setFitness(float fitness_s) {
+    Network::fitness = fitness_s;
 }
 
 void Network::setInputs(vector<float> inputs) {
@@ -207,14 +232,15 @@ void Network::print() const {
     }
     std::cout << "\nConnections:\n";
     for (const Connection &c: connections) {
-        std::cout << "\t" << c.gene.innovation << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight
-                  << "\n";
+        std::cout << "\t" << (c.enabled ? "" : "[");
+        std::cout << c.gene.innovation << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight;
+        std::cout << (c.enabled ? "" : "]") << "\n";
     }
 }
 
 float Network::getCompatibilityDistance(Network a, Network b) {
     float N = float(std::max(a.connections.size(), b.connections.size()));
-    if (N < 20) N = 1;
+    //if (N < 20) N = 1; //TODO: Stanley suggests this, and a threshhold of 3.0. -> but then once a genome reaches size 20 it is considered similar to everything else, reducing species size to 1
     float E = 0; //number of eccess genes
     float D = 0; //number of disjoint genes
     float M = 0; //number of matching genes

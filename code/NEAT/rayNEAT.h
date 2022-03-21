@@ -15,12 +15,19 @@
 #include "map"
 #include "string"
 #include <iostream>
-
+#include <functional>
 
 using std::vector, std::array, std::map, std::string, std::list, std::pair;
 
+//parameters
+
+#define speciation_threshold 1.f
+
+
+
+
 //forward declarations
-struct NeatInstance;
+class NeatInstance;
 
 typedef unsigned int node_id;
 typedef unsigned int connection_id;
@@ -32,6 +39,8 @@ struct Connection_Gene {
 };
 
 bool operator==(Connection_Gene a, Connection_Gene b);
+bool operator<(Connection_Gene a, Connection_Gene b);
+bool operator>(Connection_Gene a, Connection_Gene b);
 
 struct Connection {
     Connection_Gene gene;
@@ -41,9 +50,11 @@ struct Connection {
 
 class Network {
 public:
-    Network(NeatInstance* neatInstance);
+    explicit Network(NeatInstance* neatInstance);
 
     //------------------------ mutations
+    //randomly performs mutations on this network
+    void mutate(NeatInstance *neatInstance);
     //randomly mutates the weights in this network
     void mutateWeights();
 
@@ -71,9 +82,9 @@ public:
     void calculateNodeValue(node_id node);
 
     //------------------------ setters & getters
-    [[nodiscard]] unsigned int getFitness() const;
+    [[nodiscard]] float getFitness() const;
 
-    void setFitness(unsigned int fitness);
+    void setFitness(float fitness);
 
     void setInputs(vector<float> inputs);
 
@@ -89,26 +100,48 @@ private:
     //values of the nodes in this network. first input_count are reserved for input nodes, next output_count for output nodes, rest is hidden nodes
     map<node_id, float> node_values;
     //the last calculated fitness value of this network
-    unsigned int fitness = 0;
+    float fitness = 0;
     //number of input nodes
-    const unsigned short input_count;
+    unsigned short input_count;
     //number of output nodes
-    const unsigned short output_count;
+    unsigned short output_count;
 };
 
-struct Generation {
-    unsigned int generation_number;
+struct Species{
+    Network representative;
+    float total_fitness = 0.f;
     vector<Network> networks;
-
-    //species
 };
 
-struct NeatInstance {
+class NeatInstance {
+public:
+    //number of input nodes each network has
     const unsigned short input_count;
+    //number of output nodes each network has
     const unsigned short output_count;
-    Generation current;
+
+    //all networks managed by this instance
+    vector<Network> networks;
+    //the same networks separated into species
+    vector<Species> species;
+
+
+    unsigned int generation_number = 0;
+    //gene historical records
     unsigned int node_count = 0;
     vector<Connection_Gene> connection_genes;
+
+    //initializes the networks list with the specified number of networks
+    void initialize(unsigned int population);
+
+    void runNeat(int (*evalNetwork)(Network), int repetitions = 5);
+    void runNeat(pair<int, int> (*competeNetworks)(Network, Network), int repetitions = 5);
+private:
+
+    //performs the NEAT-algorithm on the network list.
+    // the passed function must set the fitness values of all the networks in the list.
+    // Use one of the two provided function for this, depending on competitive vs. singular evolution
+    void runNeatHelper(const std::function<void()> &evalNetworks, int generation_target = 100);
 };
 
 float sigmoid(float x);
