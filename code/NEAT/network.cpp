@@ -59,34 +59,41 @@ void Network::mutateAddNode(NeatInstance *neatInstance) {
 
 
 void Network::mutateAddConnection(NeatInstance *neatInstance) {
-
+    //create a list of all used node_ids
     list<node_id> start_candidates;
     std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates), [](auto &pair){return pair.first;});
+    //a new connection may not start at an output node
     start_candidates.remove_if([neatInstance](node_id n){return n >= neatInstance->input_count && n < neatInstance->input_count + neatInstance->output_count;});
 
     list<node_id> end_candidates;
     std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates), [](auto &pair){return pair.first;});
+    //a new connection may not end at an input node
     end_candidates.remove_if([neatInstance](node_id n){return n < neatInstance->input_count;});
 
     bool found = false;
     node_id start;
     node_id end;
 
+    //search for a non-existing connection
     while (!found && !start_candidates.empty()){
+        //randomly select a start node from the remaining candidates
         start = *std::next(start_candidates.begin(), GetRandomValue(0, int(start_candidates.size() - 1)));
+        //create a copy of the end_candidates list. From that one, remove all nodes that are already the end of a connection starting at start
+        auto end_candidates_temp = end_candidates;
         for(Connection &c : connections){
             if(c.gene.start == start){
-                end_candidates.remove(c.gene.end);
+                end_candidates_temp.remove(c.gene.end);
             }
         }
-        if(!end_candidates.empty()){
+        //if there are candidates remaining, select a random one. Otherwise, remove that start node from the list and begin anew
+        if(!end_candidates_temp.empty()){
             found = true;
-            end = *std::next(end_candidates.begin(), GetRandomValue(0, int(end_candidates.size() - 1)));
+            end = *std::next(end_candidates_temp.begin(), GetRandomValue(0, int(end_candidates_temp.size() - 1)));
         }else{
             start_candidates.remove(start);
         }
     }
-
+    //if a connection was possible, add it. Otherwise, this network is already fully connected
     if(found){
         addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
     }

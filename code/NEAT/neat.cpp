@@ -57,7 +57,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks, int 
                   [](Network &n1, Network &n2) { return n1.getFitness() > n2.getFitness(); });
 
         std::cout << "Best Network:           " << networks[0].getFitness() << "\n";
-        if(generation_number %50 == 0) {
+        if (generation_number % 50 == 0) {
             std::cout << "Best member: \n";
             networks[0].print();
         }
@@ -94,13 +94,13 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks, int 
             s.representative = s.networks[GetRandomValue(0, int(s.networks.size() - 1))];
         }
 
-        std::cout << "Species Count:          " << species.size()  << "\n";
+        std::cout << "Species Count:          " << species.size() << "\n";
         std::cout << "Species Pop:            ";
-        for(Species &s : species){
+        for (Species &s: species) {
             std::cout << s.networks.size() << "\t";
         }
         std::cout << "\nSpecies Best:           ";
-        for(Species &s : species){
+        for (Species &s: species) {
             std::cout << s.networks[0].getFitness() << "\t";
         }
         std::cout << "\n";
@@ -133,8 +133,13 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks, int 
             }
 
             //step 7: refill with offspring
+            //step 7.1: If species is large enough, immediately push an unmodified champion to the main network list without mutating
+            if(s.networks.size() > 5) {
+                networks.push_back(s.networks[0]);
+                offspring--;
+            }
+            //now create the rest of the offspring by mutation and reproduction
             int trimmed_size = int(s.networks.size());
-            //std::cout << "Offspring: " << offspring << "  Trimmed: " << trimmed_size << " Elim: " << elimination << "\n";
             for (int i = 0; i < offspring; i++) {
                 if (GetRandomValue(0, 3) == 0 || trimmed_size == 1) {
                     //mutation without crossover
@@ -154,12 +159,8 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks, int 
 
             //step 8: put the networks back in the global list
             for (int i = 0; i < s.networks.size(); i++) {
-                if (s.networks.size() > 5 && i == 0) {
-                    networks.push_back(s.networks[i]);
-                } else {
-                    s.networks[i].mutate(this);
-                    networks.push_back(s.networks[i]);
-                }
+                s.networks[i].mutate(this);
+                networks.push_back(s.networks[i]);
             }
 
             //step 9: clear the networks for the next generation
