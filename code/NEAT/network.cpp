@@ -6,7 +6,7 @@
 #include "rayNEAT.h"
 
 Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_count),
-                                               output_count(neatInstance->output_count) {
+                                               output_count(neatInstance->output_count), fitness(0) {
     for (int i = 0; i < input_count + output_count; i++) {
         node_values[i] = 0.f;
     }
@@ -18,15 +18,14 @@ Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_c
 }
 
 
-
 void Network::mutate(NeatInstance *neatInstance) {
-    if(GetRandomValue(0, 99) < 80){
+    if (GetRandomValue(0, 99) < 80) {
         mutateWeights();
     }
-    if(GetRandomValue(0, 99) < 3){
+    if (GetRandomValue(0, 99) < 3) {
         mutateAddNode(neatInstance);
     }
-    if(GetRandomValue(0, 99) < 5){
+    if (GetRandomValue(0, 99) < 5) {
         mutateAddConnection(neatInstance);
     }
 }
@@ -60,12 +59,12 @@ void Network::mutateAddNode(NeatInstance *neatInstance) {
 
 node_id Network::addNewNode(NeatInstance *neatInstance) {
     node_id n = 0;
-    while(n < neatInstance->node_count && neatInstance->used_nodes[n]) n++;
-    if(n == neatInstance->node_count){
+    while (n < neatInstance->node_count && neatInstance->used_nodes[n]) n++;
+    if (n == neatInstance->node_count) {
         //a new global node is required
         neatInstance->node_count++;
         neatInstance->used_nodes.push_back(true);
-    }else{
+    } else {
         //an unused node has been found in the global node archive
         neatInstance->used_nodes[n] = true;
     }
@@ -77,40 +76,44 @@ node_id Network::addNewNode(NeatInstance *neatInstance) {
 void Network::mutateAddConnection(NeatInstance *neatInstance) {
     //create a list of all used node_ids
     list<node_id> start_candidates;
-    std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates), [](auto &pair){return pair.first;});
+    std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates),
+                   [](auto &pair) { return pair.first; });
     //a new connection may not start at an output node
-    start_candidates.remove_if([neatInstance](node_id n){return n >= neatInstance->input_count && n < neatInstance->input_count + neatInstance->output_count;});
+    start_candidates.remove_if([neatInstance](node_id n) {
+        return n >= neatInstance->input_count && n < neatInstance->input_count + neatInstance->output_count;
+    });
 
     list<node_id> end_candidates;
-    std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates), [](auto &pair){return pair.first;});
+    std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates),
+                   [](auto &pair) { return pair.first; });
     //a new connection may not end at an input node
-    end_candidates.remove_if([neatInstance](node_id n){return n < neatInstance->input_count;});
+    end_candidates.remove_if([neatInstance](node_id n) { return n < neatInstance->input_count; });
 
     bool found = false;
     node_id start;
     node_id end;
 
     //search for a non-existing connection
-    while (!found && !start_candidates.empty()){
+    while (!found && !start_candidates.empty()) {
         //randomly select a start node from the remaining candidates
         start = *std::next(start_candidates.begin(), GetRandomValue(0, int(start_candidates.size() - 1)));
         //create a copy of the end_candidates list. From that one, remove all nodes that are already the end of a connection starting at start
         auto end_candidates_temp = end_candidates;
-        for(Connection &c : connections){
-            if(c.gene.start == start){
+        for (Connection &c: connections) {
+            if (c.gene.start == start) {
                 end_candidates_temp.remove(c.gene.end);
             }
         }
         //if there are candidates remaining, select a random one. Otherwise, remove that start node from the list and begin anew
-        if(!end_candidates_temp.empty()){
+        if (!end_candidates_temp.empty()) {
             found = true;
             end = *std::next(end_candidates_temp.begin(), GetRandomValue(0, int(end_candidates_temp.size() - 1)));
-        }else{
+        } else {
             start_candidates.remove(start);
         }
     }
     //if a connection was possible, add it. Otherwise, this network is already fully connected
-    if(found){
+    if (found) {
         addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
     }
 }
@@ -312,15 +315,58 @@ const map<node_id, float> &Network::getNodeValues() const {
 
 string Network::toString() const {
     std::ostringstream res;
-    res << "Nodes:";
-    for(auto &[id, value] : node_values){
+    res << fitness;
+    res << "||";
+    for (auto &[id, value]: node_values) {
         res << id << ";";
     }
-    res << "Connections:";
-    for(const Connection &c : connections){
-        res << c.gene.innovation << "-" << c.weight << "-" << c.enabled << ";";
+    res << "||";
+    for (const Connection &c: connections) {
+        res << c.gene.innovation << "|" << c.enabled << "|" << c.weight << ";";
     }
     return res.str();
+}
+
+Network::Network(NeatInstance *neatInstance, const string &line) : input_count(neatInstance->input_count),
+                                                                   output_count(neatInstance->output_count) {
+    vector<string> datapoints = split(line, "||");
+    //fitness
+    fitness = std::stof(datapoints[0]);
+    //nodes
+    vector<string> node_data = split(datapoints[1], ";");
+    for (string &nd: node_data) {
+        node_values[std::stoi(nd)] = 0.f;
+    }
+    //connections
+    vector<string> connection_data = split(datapoints[2], ";");
+    for (string &cd: connection_data) {
+        vector<string> connection_datapoints = split(cd, "|");
+        connections.push_back({
+                                      neatInstance->connection_genes[std::stoi(connection_datapoints[0])],
+                                      std::stoi(connection_datapoints[1]) != 0,
+                                      std::stof(connection_datapoints[2])
+
+                              });
+    }
+}
+
+
+Network Network::loadNthBest(const string &file, unsigned int rank) {
+    //initialize a neatInstance to hold the neccessary parameters (input_count, output_count, node & connection genes)
+    NeatInstance nt;
+    nt.loadParameters(file);
+    //make sure we don't overshoot the file
+    rank = std::min(rank, nt.population);
+    //init a stream of the .nt file and read it
+    std::ifstream savefile;
+    savefile.open(file);
+    string line;
+    //skip the 9 parameter lines and rank-1 lines to get to the fitting network
+    for (int i = 0; i < 9 + rank; i++) {
+        std::getline(savefile, line);
+    }
+    //init the network via the constructor
+    return Network(&nt, line);
 }
 
 

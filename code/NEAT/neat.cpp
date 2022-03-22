@@ -5,13 +5,10 @@
 
 #include "rayNEAT.h"
 
-NeatInstance::NeatInstance(const unsigned short inputCount, const unsigned short outputCount,
-                           const unsigned int repetitions, const unsigned int generationTarget,
-                           const unsigned int population) : input_count(inputCount), output_count(outputCount),
-                                                            node_count(inputCount + outputCount),
-                                                            repetitions(repetitions),
-                                                            generation_target(generationTarget),
-                                                            population(population) {}
+NeatInstance::NeatInstance() : input_count(0), output_count(0), node_count(0),
+                               repetitions(5), population(100),
+                               generation_number(0), generation_target(100),
+                               speciation_threshold(1.f), folderpath() {}
 
 void NeatInstance::runNeat(int (*evalNetwork)(Network)) {
     runNeatHelper([evalNetwork, this]() {
@@ -51,9 +48,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
     //prepare node list
     node_count = input_count + output_count;
     used_nodes.clear();
-    for (node_id id = 0; id < node_count; id++) {
-        used_nodes.push_back(false);
-    }
+    used_nodes.resize(node_count, true);
     //prepare connection list
     connection_genes.clear();
     //prepare network list
@@ -101,6 +96,9 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
                 species.end());
         //output values now, where fitness is not yet shared & networks and species networks are both filled
         print();
+        if (generation_number % 10 == 0 && !folderpath.empty()) {
+            save();
+        }
 
         //step 5: a random network is chosen as species representative for the next generation
         for (Species &s: species) {
@@ -199,7 +197,6 @@ void NeatInstance::print() {
     if (generation_number % 50 == 0) {
         std::cout << "Best member: \n";
         networks[0].print();
-        std::cout << networks[0].toString() << "\n";
     }
 
     std::cout << "Total Nodes:            " << used_nodes.size() << "\n";
@@ -222,4 +219,107 @@ void NeatInstance::print() {
         std::cout << s.networks[0].getConnections().size() << "\t";
     }
     std::cout << "\n";
+}
+
+void NeatInstance::save() const {
+    //create folder if neccessary
+    std::filesystem::create_directories(folderpath);
+    string filepath;
+    filepath.append(folderpath);
+    filepath.append("/NEAT_Generation_");
+    filepath.append(std::to_string(generation_number));
+    filepath.append(".rn");
+    //open file
+    std::ofstream savefile;
+    savefile.open(filepath);
+    //save general AI parameters
+    savefile
+            << input_count << "\n"
+            << output_count << "\n"
+            << repetitions << "\n"
+            << generation_number << "\n"
+            << generation_target << "\n"
+            << population << "\n"
+            << speciation_threshold << "\n"
+            << node_count << "\n";
+    //used nodes is not saved -> on eventual run it would be updated soon enough
+    //save connection gene data -> this allows networks to only save innovation numbers
+    for (const Connection_Gene &cg: connection_genes) {
+        savefile << cg.innovation << "|" << cg.start << "|" << cg.end << ";";
+    }
+    savefile << "\n";
+    //save networks
+    for (const Network &n: networks) {
+        savefile << n.toString() << "\n";
+    }
+    savefile.close();
+}
+
+void NeatInstance::loadParameters(const string &file) {
+    std::ifstream savefile;
+    savefile.open(file);
+    string line;
+    //parameters
+    std::getline(savefile, line);
+    input_count = std::stoi(line);
+    std::getline(savefile, line);
+    output_count = std::stoi(line);
+    std::getline(savefile, line);
+    repetitions = std::stoi(line);
+    std::getline(savefile, line);
+    generation_number = std::stoi(line);
+    std::getline(savefile, line);
+    generation_target = std::stoi(line);
+    std::getline(savefile, line);
+    population = std::stoi(line);
+    std::getline(savefile, line);
+    speciation_threshold = std::stof(line);
+    std::getline(savefile, line);
+    node_count = std::stoi(line);
+    //node data is not loaded as it is not saved. Instead, we just initialize an used_node vector of sufficient size
+    used_nodes.resize(node_count, true); //pretend all nodes are used
+    //load connection data
+    std::getline(savefile, line);
+    vector<string> connection_data = split(line, ";");
+    for (string &cd: connection_data) {
+        vector<string> datapoints = split(cd, "|");
+        connection_genes.push_back(
+                {
+                        static_cast<connection_id>(std::stoi(datapoints[0])),
+                        static_cast<connection_id>(std::stoi(datapoints[1])),
+                        static_cast<connection_id>(std::stoi(datapoints[2]))
+                });
+    }
+    savefile.close();
+}
+
+void NeatInstance::loadNetworks(const string &file) {
+    std::ifstream savefile;
+    savefile.open(file);
+    string line;
+    //skip the first 9 lines containing parameter & genome data
+    for(int i = 0; i < 9; i++){
+        std::getline(savefile, line);
+    }
+    networks.reserve(population);
+    for(int i = 0; i < population; i++){
+        std::getline(savefile, line);
+        networks.emplace_back(this, line);
+    }
+    savefile.close();
+}
+
+vector<string> split(const string &string_to_split, const string &delimiter) {
+    vector<string> res;
+    auto start = 0U;
+    auto end = string_to_split.find(delimiter);
+    while (end != std::string::npos) {
+        res.push_back(string_to_split.substr(start, end - start));
+        start = end + delimiter.length();
+        end = string_to_split.find(delimiter, start);
+    }
+    res.push_back(string_to_split.substr(start, end));
+    //if the string ends with a delimiter, do not include an empty string
+    if (res[res.size() - 1].empty()) res.pop_back();
+    return res;
 }

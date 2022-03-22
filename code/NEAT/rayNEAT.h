@@ -18,6 +18,8 @@
 #include <functional>
 #include <algorithm>
 #include <sstream>
+#include <fstream>
+#include <filesystem>
 
 using std::vector, std::array, std::map, std::string, std::list, std::pair;
 
@@ -50,9 +52,16 @@ struct Connection {
 
 class Network {
 public:
-    explicit Network(NeatInstance *neatInstance);
+    // ------------ constructors ------------
 
-    //------------------------ mutations
+    explicit Network(NeatInstance *neatInstance);
+    //loads a network based on a neatInstance and a line from a .nt file
+    explicit Network(NeatInstance *neatInstance, const string& line);
+    //loads the n-th best network from the specified .nt file
+    static Network loadNthBest(const string& file, unsigned int rank = 1);
+
+    // ------------ mutations ------------
+
     //randomly performs mutations on this network
     void mutate(NeatInstance *neatInstance);
 
@@ -71,21 +80,23 @@ public:
     //adds a new connection to the network and if neccessary registers it with the global innovation list
     void addConnection(NeatInstance *neatInstance, node_id start, node_id end, float weight);
 
-    //------------------------ reproduction
+    // ------------ reproduction ------------
+
     //creates a child network as combination of mother and father network
     static Network reproduce(NeatInstance *neatInstance, Network mother, Network father);
 
     //adds a connection to a network INHERITED from a parent. This does assume the connection is already registered globally
     void addInheritedConnection(Connection c);
 
-    //------------------------ calculation
+    // ------------ calculation ------------
     //calculates the output values of the network after the input values have been set
     void calculateOutputs();
 
     //calculates the value of a single node based on its predecessors in the network
     void calculateNodeValue(node_id node);
 
-    //------------------------ setters & getters
+    // ------------ setters & getters ------------
+
     [[nodiscard]] float getFitness() const;
 
     void setFitness(float fitness);
@@ -113,7 +124,7 @@ private:
     //values of the nodes in this network. first input_count are reserved for input nodes, next output_count for output nodes, rest is hidden nodes
     map<node_id, float> node_values;
     //the last calculated fitness value of this network
-    float fitness = 0;
+    float fitness;
     //number of input nodes
     unsigned short input_count;
     //number of output nodes
@@ -131,21 +142,22 @@ public:
 
     // ------------ General Algorithm parameters ------------
     //Constructor initializing the following parameters
-    NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int repetitions,
-                 unsigned int generationTarget, unsigned int population);
+    NeatInstance();
 
     //number of input nodes each network has
-    const unsigned short input_count;
+    unsigned short input_count;
     //number of output nodes each network has
-    const unsigned short output_count;
+    unsigned short output_count;
     //how often every single network is evaluated to calculate its fitness each round
-    const unsigned int repetitions;
+    unsigned int repetitions;
     //how many generations should be simulated
-    const unsigned int generation_target;
+    unsigned int generation_target;
     //number of total networks
-    const unsigned int population;
+    unsigned int population;
     //distance threshhold for when two networks are considered to be of the same species
-    const float speciation_threshold = 1.f;
+    float speciation_threshold;
+    //the path to the folder that holds resulting files of network generations
+    string folderpath;
 
     // ------------ Gene archives ------------
 
@@ -161,23 +173,34 @@ public:
     //using the provided function and averaging fitness results
     void runNeat(pair<int, int> (*competeNetworks)(Network, Network));
 
-    // ------------ Printing ------------
+    // ------------ Output ------------
 
     //prints information about all networks to the standard output
     void print();
+    //saves the current generation to the file specified in filepath
+    void save() const;
+
+    //loads parameters & genome data from the specified file
+    void loadParameters(const string& file);
+    //loads networks from the specified file. Parameters need to already be loaded!
+    void loadNetworks(const string& file);
 private:
     //all networks managed by this instance
     vector<Network> networks;
     //the same networks separated into species
     vector<Species> species;
     //the current number of simulated generations
-    unsigned int generation_number = 0;
+    unsigned int generation_number;
 
     //performs the NEAT-algorithm on the network list.
     //the passed function must set the fitness values of all the networks in the list.
     //should only be called by the public runNeat functions
     void runNeatHelper(const std::function<void()> &evalNetworks);
 };
+
+
+//Helper method that's splits a string into subcomponents. If the string ends with the delimiter, an empty string will NOT be included
+vector<string> split(const string& string_to_split, const string& delimiter);
 
 //a modified sigmoid function
 float sigmoid(float x);
