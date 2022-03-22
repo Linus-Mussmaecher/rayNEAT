@@ -47,14 +47,30 @@ void Network::mutateWeights() {
 
 void Network::mutateAddNode(NeatInstance *neatInstance) {
     //select a random connection to split with a node
-    Connection split = connections[GetRandomValue(0, int(connections.size() - 1))];
+    int split_index = GetRandomValue(0, int(connections.size() - 1));
+    Connection split = connections[split_index];
     //get new node id and inform the instance that a new node has been added
-    node_id newNode = neatInstance->node_count++;
+    node_id newNode = addNewNode(neatInstance);
     //disable the old connection
-    split.enabled = false;
+    connections[split_index].enabled = false;
     //add new connections from old start to new node to old end
     addConnection(neatInstance, split.gene.start, newNode, split.weight);
     addConnection(neatInstance, newNode, split.gene.end, 1.f);
+}
+
+node_id Network::addNewNode(NeatInstance *neatInstance) {
+    node_id n = 0;
+    while(n < neatInstance->node_count && neatInstance->used_nodes[n]) n++;
+    if(n == neatInstance->node_count){
+        //a new global node is required
+        neatInstance->node_count++;
+        neatInstance->used_nodes.push_back(true);
+    }else{
+        //an unused node has been found in the global node archive
+        neatInstance->used_nodes[n] = true;
+    }
+    node_values[n] = 0.f;
+    return n;
 }
 
 
@@ -220,7 +236,7 @@ void Network::setFitness(float fitness_s) {
 
 void Network::setInputs(vector<float> inputs) {
     for (int i = 0; i < input_count; i++) {
-        node_values[i] = i < inputs.size() ? inputs[i] : 0.f;
+        node_values[i] = i < inputs.size() ? sigmoid(inputs[i]) : 0.f;
     }
 }
 
@@ -235,7 +251,7 @@ vector<float> Network::getOutputs() {
 void Network::print() const {
     std::cout << "Nodes: ";
     for (auto &[id, value]: node_values) {
-        std::cout << id << ", ";
+        std::cout << id << "  ";
     }
     std::cout << "\nConnections:\n";
     for (const Connection &c: connections) {
@@ -247,7 +263,7 @@ void Network::print() const {
 
 float Network::getCompatibilityDistance(Network a, Network b) {
     float N = float(std::max(a.connections.size(), b.connections.size()));
-    //if (N < 20) N = 1; //TODO: Stanley suggests this, and a threshhold of 3.0. -> but then once a genome reaches size 20 it is considered similar to everything else, reducing species size to 1
+    //if (N < 20) N = 1; //Stanley suggests this, and a threshhold of 3.0. -> but then once a genome reaches size 20 it is considered similar to everything else, reducing species size to 1
     float E = 0; //number of eccess genes
     float D = 0; //number of disjoint genes
     float M = 0; //number of matching genes
@@ -284,6 +300,27 @@ float Network::getCompatibilityDistance(Network a, Network b) {
     }
 
     return 1.f * E / N + 1.f * D / N + 0.4f * W / M;
+}
+
+const vector<Connection> &Network::getConnections() const {
+    return connections;
+}
+
+const map<node_id, float> &Network::getNodeValues() const {
+    return node_values;
+}
+
+string Network::toString() const {
+    std::ostringstream res;
+    res << "Nodes:";
+    for(auto &[id, value] : node_values){
+        res << id << ";";
+    }
+    res << "Connections:";
+    for(const Connection &c : connections){
+        res << c.gene.innovation << "-" << c.weight << "-" << c.enabled << ";";
+    }
+    return res.str();
 }
 
 

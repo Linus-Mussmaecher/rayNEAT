@@ -9,21 +9,19 @@
 #include "raymath.h"
 
 #include <cmath>
-#include "vector"
-#include "list"
-#include "array"
-#include "map"
-#include "string"
+#include <vector>
+#include <list>
+#include <array>
+#include <map>
+#include <string>
 #include <iostream>
 #include <functional>
+#include <algorithm>
+#include <sstream>
 
 using std::vector, std::array, std::map, std::string, std::list, std::pair;
 
 //parameters
-
-#define speciation_threshold 1.f
-
-
 
 
 //forward declarations
@@ -39,7 +37,9 @@ struct Connection_Gene {
 };
 
 bool operator==(Connection_Gene a, Connection_Gene b);
+
 bool operator<(Connection_Gene a, Connection_Gene b);
+
 bool operator>(Connection_Gene a, Connection_Gene b);
 
 struct Connection {
@@ -50,11 +50,12 @@ struct Connection {
 
 class Network {
 public:
-    explicit Network(NeatInstance* neatInstance);
+    explicit Network(NeatInstance *neatInstance);
 
     //------------------------ mutations
     //randomly performs mutations on this network
     void mutate(NeatInstance *neatInstance);
+
     //randomly mutates the weights in this network
     void mutateWeights();
 
@@ -63,6 +64,9 @@ public:
 
     //adds a completely new link into the network. Registers this link to the global innovation list
     void mutateAddConnection(NeatInstance *neatInstance);
+
+    //adds a completely new node to the network not yet used by any other network
+    node_id addNewNode(NeatInstance *neatInstance);
 
     //adds a new connection to the network and if neccessary registers it with the global innovation list
     void addConnection(NeatInstance *neatInstance, node_id start, node_id end, float weight);
@@ -86,11 +90,20 @@ public:
 
     void setFitness(float fitness);
 
+    [[nodiscard]] const vector<Connection> &getConnections() const;
+
+    [[nodiscard]] const map<node_id, float> &getNodeValues() const;
+
+    //sets the values of the input nodes (these will internally be scaled to be in the [0,1] intervall)
     void setInputs(vector<float> inputs);
 
     vector<float> getOutputs();
 
+    //print a human-readable description to the standard output
     void print() const;
+
+    //return a somewhat human-readable and very machine readable string that describes this networks nodes & connections. connections only print their innovation!
+    [[nodiscard]] string toString() const;
 
     static float getCompatibilityDistance(Network a, Network b);
 
@@ -107,7 +120,7 @@ private:
     unsigned short output_count;
 };
 
-struct Species{
+struct Species {
     Network representative;
     float total_fitness = 0.f;
     vector<Network> networks;
@@ -115,37 +128,61 @@ struct Species{
 
 class NeatInstance {
 public:
+
+    // ------------ General Algorithm parameters ------------
+    //Constructor initializing the following parameters
+    NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int repetitions,
+                 unsigned int generationTarget, unsigned int population);
+
     //number of input nodes each network has
     const unsigned short input_count;
     //number of output nodes each network has
     const unsigned short output_count;
+    //how often every single network is evaluated to calculate its fitness each round
+    const unsigned int repetitions;
+    //how many generations should be simulated
+    const unsigned int generation_target;
+    //number of total networks
+    const unsigned int population;
+    //distance threshhold for when two networks are considered to be of the same species
+    const float speciation_threshold = 1.f;
 
+    // ------------ Gene archives ------------
+
+    unsigned int node_count;
+    vector<bool> used_nodes;
+    vector<Connection_Gene> connection_genes;
+
+    // ------------ Execution options ------------
+
+    //performs the NEAT algorithm. Each network's fitness is evaluated with the provided function
+    void runNeat(int (*evalNetwork)(Network));
+    //performs the NEAT algorithm. Each networks's fitness is evaluated by letting them compete with each other network
+    //using the provided function and averaging fitness results
+    void runNeat(pair<int, int> (*competeNetworks)(Network, Network));
+
+    // ------------ Printing ------------
+
+    //prints information about all networks to the standard output
+    void print();
+private:
     //all networks managed by this instance
     vector<Network> networks;
     //the same networks separated into species
     vector<Species> species;
-
-
+    //the current number of simulated generations
     unsigned int generation_number = 0;
-    //gene historical records
-    unsigned int node_count = 0;
-    vector<Connection_Gene> connection_genes;
-
-    //initializes the networks list with the specified number of networks
-    void initialize(unsigned int population);
-
-    void runNeat(int (*evalNetwork)(Network), int repetitions = 5);
-    void runNeat(pair<int, int> (*competeNetworks)(Network, Network), int repetitions = 5);
-private:
 
     //performs the NEAT-algorithm on the network list.
-    // the passed function must set the fitness values of all the networks in the list.
-    // Use one of the two provided function for this, depending on competitive vs. singular evolution
-    void runNeatHelper(const std::function<void()> &evalNetworks, int generation_target = 100);
+    //the passed function must set the fitness values of all the networks in the list.
+    //should only be called by the public runNeat functions
+    void runNeatHelper(const std::function<void()> &evalNetworks);
 };
 
+//a modified sigmoid function
 float sigmoid(float x);
 
+//returns a randomly selected float between the two passed values
 float getRandomFloat(float lo, float hi);
 
 
