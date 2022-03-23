@@ -11,9 +11,10 @@ Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_c
         node_values[i] = 0.f;
     }
     for (int i = 0; i < input_count; i++) {
-        for (int j = input_count; j < input_count + output_count; j++) {
+        /*for (int j = input_count; j < input_count + output_count; j++) {
             addConnection(neatInstance, i, j, 1.f);
-        }
+        }*/
+        addConnection(neatInstance, i, GetRandomValue(input_count, input_count + output_count - 1), 1.f);
     }
 }
 
@@ -38,7 +39,7 @@ void Network::mutateWeights() {
             c.weight = getRandomFloat(-2.f, 2.f);
         } else {
             //otherwise, slightly pertube it
-            c.weight = std::clamp(c.weight * getRandomFloat(0.8f, 1.2f), -2.f, 2.f);
+            c.weight = std::clamp(c.weight + getRandomFloat(-0.5f, 0.5f), -2.f, 2.f);
         }
     }
 }
@@ -301,7 +302,8 @@ float Network::getCompatibilityDistance(Network a, Network b) {
             j++;
         }
     }
-
+    if(N == 0) N = 1;
+    if(M == 0) M = 1;
     return 1.f * E / N + 1.f * D / N + 0.4f * W / M;
 }
 

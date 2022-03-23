@@ -17,7 +17,7 @@ void NeatInstance::runNeat(int (*evalNetwork)(Network)) {
             for (int i = 0; i < repetitions; i++) {
                 f += evalNetwork(n);
             }
-            n.setFitness(float(f) / float(repetitions));
+            n.setFitness( std::max(float(f) / float(repetitions), 1.f));
         }
     });
 }
@@ -26,13 +26,15 @@ void NeatInstance::runNeat(int (*evalNetwork)(Network)) {
 void NeatInstance::runNeat(pair<int, int> (*competeNetworks)(Network, Network)) {
     runNeatHelper([competeNetworks, this]() {
         vector<int> f;
-        f.reserve(networks.size());
+        f.resize(networks.size());
         for (int i = 0; i < networks.size(); i++) {
             for (int j = i + 1; j < networks.size(); j++) {
+                //std::cout << i << " vs. " << j << "\n";
                 for (int r = 0; r < repetitions; r++) {
                     auto[n1_fitness, n2_fitness]= competeNetworks(networks[i], networks[j]);
-                    f[i] += n1_fitness;
-                    f[j] += n2_fitness;
+                    auto[n1_fitnessb, n2_fitnessb]= competeNetworks(networks[j], networks[i]);
+                    f[i] += n1_fitness + n1_fitnessb;
+                    f[j] += n2_fitness + n2_fitnessb;
                 }
             }
             //this network has fought all other networks, so we can now calculate its total fitness
@@ -110,7 +112,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
         for (Species &s: species) {
             s.total_fitness = 0.f;
             for (Network &n: s.networks) {
-                n.setFitness(n.getFitness() / float(s.networks.size()));
+                n.setFitness(std::max(n.getFitness() / float(s.networks.size()),1.f));
                 fitness_total += n.getFitness();
                 s.total_fitness += n.getFitness();
             }
