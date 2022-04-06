@@ -5,10 +5,83 @@
 
 #include "rayNEAT.h"
 
-NeatInstance::NeatInstance() : input_count(0), output_count(0), node_count(0),
-                               repetitions(5), population(100),
-                               generation_number(0), generation_target(100),
-                               speciation_threshold(1.f), folderpath() {}
+
+NeatInstance::NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int population)
+        : input_count(inputCount), output_count(outputCount), population(population), node_count(0),
+          repetitions(5),
+          generation_number(0), generation_target(100),
+          speciation_threshold(1.f), folderpath() {
+
+    //initialization:
+    //prepare node list
+    node_count = input_count + output_count;
+    used_nodes.clear();
+    used_nodes.resize(node_count, true);
+    //prepare connection list
+    connection_genes.clear();
+    //prepare network list
+    networks.clear();
+    networks.reserve(population);
+    for (int i = 0; i < population; i++) {
+        networks.emplace_back(this);
+    }
+    //push a single first species that is represented by the first network
+    species.clear();
+    species.push_back({networks[0]});
+}
+
+
+
+NeatInstance::NeatInstance(const string &file) {
+    std::ifstream savefile;
+    savefile.open(file);
+    string line;
+    //parameters
+    std::getline(savefile, line);
+    input_count = std::stoi(line);
+    std::getline(savefile, line);
+    output_count = std::stoi(line);
+    std::getline(savefile, line);
+    repetitions = std::stoi(line);
+    std::getline(savefile, line);
+    generation_number = std::stoi(line);
+    std::getline(savefile, line);
+    generation_target = std::stoi(line);
+    std::getline(savefile, line);
+    population = std::stoi(line);
+    std::getline(savefile, line);
+    speciation_threshold = std::stof(line);
+    std::getline(savefile, line);
+    node_count = std::stoi(line);
+    //node data is not loaded as it is not saved. Instead, we just initialize an used_node vector of sufficient size
+    used_nodes.resize(node_count, true); //pretend all nodes are used
+    //load connection data
+    std::getline(savefile, line);
+    vector<string> connection_data = split(line, ";");
+    for (string &cd: connection_data) {
+        vector<string> datapoints = split(cd, "|");
+        connection_genes.push_back(
+                {
+                        static_cast<connection_id>(std::stoi(datapoints[0])),
+                        static_cast<connection_id>(std::stoi(datapoints[1])),
+                        static_cast<connection_id>(std::stoi(datapoints[2]))
+                });
+    }
+
+    networks.reserve(population);
+    for(int i = 0; i < population; i++){
+        std::getline(savefile, line);
+        networks.emplace_back(this, line);
+    }
+
+    //push a single first species that is represented by the first network. old species are not saved
+    species.clear();
+    species.push_back({networks[0]});
+
+
+    savefile.close();
+
+}
 
 void NeatInstance::runNeat(int (*evalNetwork)(Network)) {
     runNeatHelper([evalNetwork, this]() {
@@ -44,24 +117,7 @@ void NeatInstance::runNeat(pair<int, int> (*competeNetworks)(Network, Network)) 
 }
 
 void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
-    //initialization:
 
-    generation_number = 0;
-    //prepare node list
-    node_count = input_count + output_count;
-    used_nodes.clear();
-    used_nodes.resize(node_count, true);
-    //prepare connection list
-    connection_genes.clear();
-    //prepare network list
-    networks.clear();
-    networks.reserve(population);
-    for (int i = 0; i < population; i++) {
-        networks.emplace_back(this);
-    }
-    //push a single first species that is represented by the first network
-    species.clear();
-    species.push_back({networks[0]});
 
     //algorithm
     while (generation_number++ < generation_target) {
@@ -146,7 +202,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
                 if (GetRandomValue(0, 3) == 0 || parent_size == 1) {
                     //mutation without crossover
                     Network n = s.networks[GetRandomValue(0, parent_size - 1)];
-                    n.mutate(this);
+                    n.mutate();
                     s.networks.push_back(n);
                 } else {
                     //crossover
@@ -154,14 +210,14 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
                     int father = GetRandomValue(0, parent_size - 2);
                     //pick a random mother with higher index from the non-new networks
                     int mother = GetRandomValue(father + 1, parent_size - 1);
-                    Network n = Network::reproduce(this, s.networks[mother], s.networks[father]);
+                    Network n = Network::reproduce(s.networks[mother], s.networks[father]);
                     s.networks.push_back(n);
                 }
             }
 
             //step 10: put the networks back in the global list
             for (auto &network: s.networks) {
-                network.mutate(this);
+                network.mutate();
                 networks.push_back(network);
             }
 
@@ -173,7 +229,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
         while (networks.size() < population) {
             int father = GetRandomValue(0, int(networks.size() - 2));
             int mother = GetRandomValue(father + 1, int(networks.size() - 1));
-            Network n = Network::reproduce(this, networks[mother], networks[father]);
+            Network n = Network::reproduce(networks[mother], networks[father]);
             networks.push_back(n);
         }
 
@@ -257,58 +313,9 @@ void NeatInstance::save() const {
     savefile.close();
 }
 
-void NeatInstance::loadParameters(const string &file) {
-    std::ifstream savefile;
-    savefile.open(file);
-    string line;
-    //parameters
-    std::getline(savefile, line);
-    input_count = std::stoi(line);
-    std::getline(savefile, line);
-    output_count = std::stoi(line);
-    std::getline(savefile, line);
-    repetitions = std::stoi(line);
-    std::getline(savefile, line);
-    generation_number = std::stoi(line);
-    std::getline(savefile, line);
-    generation_target = std::stoi(line);
-    std::getline(savefile, line);
-    population = std::stoi(line);
-    std::getline(savefile, line);
-    speciation_threshold = std::stof(line);
-    std::getline(savefile, line);
-    node_count = std::stoi(line);
-    //node data is not loaded as it is not saved. Instead, we just initialize an used_node vector of sufficient size
-    used_nodes.resize(node_count, true); //pretend all nodes are used
-    //load connection data
-    std::getline(savefile, line);
-    vector<string> connection_data = split(line, ";");
-    for (string &cd: connection_data) {
-        vector<string> datapoints = split(cd, "|");
-        connection_genes.push_back(
-                {
-                        static_cast<connection_id>(std::stoi(datapoints[0])),
-                        static_cast<connection_id>(std::stoi(datapoints[1])),
-                        static_cast<connection_id>(std::stoi(datapoints[2]))
-                });
-    }
-    savefile.close();
-}
-
-void NeatInstance::loadNetworks(const string &file) {
-    std::ifstream savefile;
-    savefile.open(file);
-    string line;
-    //skip the first 9 lines containing parameter & genome data
-    for(int i = 0; i < 9; i++){
-        std::getline(savefile, line);
-    }
-    networks.reserve(population);
-    for(int i = 0; i < population; i++){
-        std::getline(savefile, line);
-        networks.emplace_back(this, line);
-    }
-    savefile.close();
+vector<Network> NeatInstance::getNetworksSorted() {
+    std::sort(networks.begin(), networks.end(), [](const Network &n1, const Network &n2){return n1.getFitness() < n2.getFitness();});
+    return networks;
 }
 
 vector<string> split(const string &string_to_split, const string &delimiter) {

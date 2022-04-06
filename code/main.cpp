@@ -7,9 +7,4 @@
 
 int main() {
     SetRandomSeed(clock());
-
-
-    testSnake();
-    Network n = Network::loadNthBest("./snake/NEAT_Generation_100.rn", 10);
-    runSnakeVisual(n, true);
 }

@@ -5,57 +5,79 @@
 
 #include "rayNEAT.h"
 
-Network::Network(NeatInstance *neatInstance) : input_count(neatInstance->input_count),
-                                               output_count(neatInstance->output_count), fitness(0) {
-    for (int i = 0; i < input_count + output_count; i++) {
+Network::Network(NeatInstance *neatInstance) :  neat_instance(neatInstance), fitness(0) {
+    for (int i = 0; i < neat_instance->input_count + neat_instance->output_count; i++) {
         node_values[i] = 0.f;
     }
-    for (int i = 0; i < input_count; i++) {
+    for (int i = 0; i < neat_instance->input_count; i++) {
         /*for (int j = input_count; j < input_count + output_count; j++) {
             addConnection(neatInstance, i, j, 1.f);
         }*/
-        addConnection(neatInstance, i, GetRandomValue(input_count, input_count + output_count - 1), 1.f);
+        addConnection(i, GetRandomValue(neat_instance->input_count,
+                                        neat_instance->input_count + neat_instance->output_count - 1), 1.f);
+    }
+}
+
+Network::Network(NeatInstance *neatInstance, const string &line) :  neat_instance(neatInstance) {
+    vector<string> datapoints = split(line, "||");
+    //fitness
+    fitness = std::stof(datapoints[0]);
+    //nodes
+    vector<string> node_data = split(datapoints[1], ";");
+    for (string &nd: node_data) {
+        node_values[std::stoi(nd)] = 0.f;
+    }
+    //connections
+    vector<string> connection_data = split(datapoints[2], ";");
+    for (string &cd: connection_data) {
+        vector<string> connection_datapoints = split(cd, "|");
+        connections.push_back({
+                                      neatInstance->connection_genes[std::stoi(connection_datapoints[0])],
+                                      std::stoi(connection_datapoints[1]) != 0,
+                                      std::stof(connection_datapoints[2])
+
+                              });
     }
 }
 
 
-void Network::mutate(NeatInstance *neatInstance) {
-    if (GetRandomValue(0, 99) < 80) {
+void Network::mutate() {
+    if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_weight) {
         mutateWeights();
     }
-    if (GetRandomValue(0, 99) < 3) {
-        mutateAddNode(neatInstance);
+    if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_node) {
+        mutateAddNode();
     }
-    if (GetRandomValue(0, 99) < 5) {
-        mutateAddConnection(neatInstance);
+    if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_link) {
+        mutateAddConnection();
     }
 }
 
 
 void Network::mutateWeights() {
     for (Connection &c: connections) {
-        if (GetRandomValue(0, 9) == 0) {
-            //in 10% of cases, completely randomize weight
-            c.weight = getRandomFloat(-2.f, 2.f);
+        if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_weight_pertube) {
+            //slightly pertube weight
+            c.weight = std::clamp(c.weight + rnd_f(- neat_instance->mutate_weight_pertube_strength, neat_instance->mutate_weight_pertube_strength), -2.f, 2.f);
         } else {
-            //otherwise, slightly pertube it
-            c.weight = std::clamp(c.weight + getRandomFloat(-0.5f, 0.5f), -2.f, 2.f);
+            //completely randomize weight
+            c.weight = rnd_f(-2.f, 2.f);
         }
     }
 }
 
 
-void Network::mutateAddNode(NeatInstance *neatInstance) {
+void Network::mutateAddNode() {
     //select a random connection to split with a node
     int split_index = GetRandomValue(0, int(connections.size() - 1));
     Connection split = connections[split_index];
     //get new node id and inform the instance that a new node has been added
-    node_id newNode = addNewNode(neatInstance);
+    node_id newNode = addNewNode(neat_instance);
     //disable the old connection
     connections[split_index].enabled = false;
     //add new connections from old start to new node to old end
-    addConnection(neatInstance, split.gene.start, newNode, split.weight);
-    addConnection(neatInstance, newNode, split.gene.end, 1.f);
+    addConnection(split.gene.start, newNode, split.weight);
+    addConnection(newNode, split.gene.end, 1.f);
 }
 
 node_id Network::addNewNode(NeatInstance *neatInstance) {
@@ -74,21 +96,21 @@ node_id Network::addNewNode(NeatInstance *neatInstance) {
 }
 
 
-void Network::mutateAddConnection(NeatInstance *neatInstance) {
+void Network::mutateAddConnection() {
     //create a list of all used node_ids
     list<node_id> start_candidates;
     std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates),
                    [](auto &pair) { return pair.first; });
     //a new connection may not start at an output node
-    start_candidates.remove_if([neatInstance](node_id n) {
-        return n >= neatInstance->input_count && n < neatInstance->input_count + neatInstance->output_count;
+    start_candidates.remove_if([&](node_id n) {
+        return n >= neat_instance->input_count && n < neat_instance->input_count + neat_instance->output_count;
     });
 
     list<node_id> end_candidates;
     std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates),
                    [](auto &pair) { return pair.first; });
     //a new connection may not end at an input node
-    end_candidates.remove_if([neatInstance](node_id n) { return n < neatInstance->input_count; });
+    end_candidates.remove_if([&](node_id n) { return n < neat_instance->input_count; });
 
     bool found = false;
     node_id start;
@@ -115,14 +137,14 @@ void Network::mutateAddConnection(NeatInstance *neatInstance) {
     }
     //if a connection was possible, add it. Otherwise, this network is already fully connected
     if (found) {
-        addConnection(neatInstance, start, end, getRandomFloat(-2.f, 2.f));
+        addConnection(start, end, rnd_f(-2.f, 2.f));
     }
 }
 
-void Network::addConnection(NeatInstance *neatInstance, node_id start, node_id end, float weight) {
-    connection_id newID = neatInstance->connection_genes.size();
+void Network::addConnection(node_id start, node_id end, float weight) {
+    connection_id newID = neat_instance->connection_genes.size();
     //search the global innovation list for a fitting gene
-    for (Connection_Gene &cg: neatInstance->connection_genes) {
+    for (Connection_Gene &cg: neat_instance->connection_genes) {
         if (cg.start == start && cg.end == end) {
             newID = cg.innovation;
         }
@@ -133,9 +155,9 @@ void Network::addConnection(NeatInstance *neatInstance, node_id start, node_id e
                                   true, weight
                           });
     //now check if the global innovation list already knows this connection
-    if (newID == neatInstance->connection_genes.size()) {
+    if (newID == neat_instance->connection_genes.size()) {
         //nothing was found -> add new innovation to the global list
-        neatInstance->connection_genes.push_back({newID, start, end});
+        neat_instance->connection_genes.push_back({newID, start, end});
     } else {
         //the connection already existed -> sort connnection list to ensure correct ordering
         std::sort(connections.begin(), connections.end(),
@@ -147,8 +169,8 @@ void Network::addConnection(NeatInstance *neatInstance, node_id start, node_id e
 }
 
 
-Network Network::reproduce(NeatInstance *neatInstance, Network mother, Network father) {
-    Network child(neatInstance);
+Network Network::reproduce(Network mother, Network father) {
+    Network child(mother.neat_instance);
     child.connections.clear();
     int i = 0;
     int j = 0;
@@ -204,21 +226,8 @@ void Network::addInheritedConnection(Connection c) {
     node_values.try_emplace(c.gene.end, 0.f);
 }
 
-void Network::calculateOutputs() {
-    //step 1: calculate value of all hiden nodes
-    for (auto &[id, value]: node_values) {
-        if (id >= input_count + output_count) {
-            calculateNodeValue(id);
-        }
-    }
-    //step 2: caluclate value of output nodes (positioned at the start of the network)
-    for (int i = input_count; i < input_count + output_count; i++) {
-        calculateNodeValue(i);
-    }
-}
-
 void Network::calculateNodeValue(node_id node) {
-    //calculate the weighted sum of predecessor nodes and apply sigmoid function
+    //calculate the weighted sum of predecessor nodes and apply activation function
     float weight_sum = 0.f;
     int i = 0;
     for (const Connection &c: connections) {
@@ -227,7 +236,7 @@ void Network::calculateNodeValue(node_id node) {
             i++;
         }
     }
-    node_values[node] = sigmoid(weight_sum);
+    node_values[node] = neat_instance->activation_function(weight_sum);
 }
 
 float Network::getFitness() const {
@@ -238,17 +247,27 @@ void Network::setFitness(float fitness_s) {
     Network::fitness = fitness_s;
 }
 
-void Network::setInputs(vector<float> inputs) {
-    for (int i = 0; i < input_count; i++) {
-        node_values[i] = i < inputs.size() ? sigmoid(inputs[i]) : 0.f;
-    }
-}
 
-vector<float> Network::getOutputs() {
+vector<float> Network::calculate(vector<float> inputs){
+    //step 1 : set inputs
+    for (int i = 0; i < neat_instance->input_count; i++) {
+        node_values[i] = i < inputs.size()  ? inputs[i] : 0.f;
+    }
+
+    //step 2: propagate values through the network
+    for (auto &[id, value]: node_values) {
+        if (id >= neat_instance->input_count + neat_instance->output_count) {
+            calculateNodeValue(id);
+        }
+    }
+
+    //step 3: caluclate value of output nodes (positioned at the start of the network) and add to result vector
     vector<float> res;
-    for (int i = input_count; i < output_count + input_count; i++) {
+    for (int i = neat_instance->input_count; i < neat_instance->input_count + neat_instance->output_count; i++) {
+        calculateNodeValue(i);
         res.push_back(node_values[i]);
     }
+
     return res;
 }
 
@@ -304,7 +323,7 @@ float Network::getCompatibilityDistance(Network a, Network b) {
     }
     if(N == 0) N = 1;
     if(M == 0) M = 1;
-    return 1.f * E / N + 1.f * D / N + 0.4f * W / M;
+    return a.neat_instance->c1 * E / N + a.neat_instance->c2 * D / N + a.neat_instance->c3 * W / M;
 }
 
 const vector<Connection> &Network::getConnections() const {
@@ -329,54 +348,12 @@ string Network::toString() const {
     return res.str();
 }
 
-Network::Network(NeatInstance *neatInstance, const string &line) : input_count(neatInstance->input_count),
-                                                                   output_count(neatInstance->output_count) {
-    vector<string> datapoints = split(line, "||");
-    //fitness
-    fitness = std::stof(datapoints[0]);
-    //nodes
-    vector<string> node_data = split(datapoints[1], ";");
-    for (string &nd: node_data) {
-        node_values[std::stoi(nd)] = 0.f;
-    }
-    //connections
-    vector<string> connection_data = split(datapoints[2], ";");
-    for (string &cd: connection_data) {
-        vector<string> connection_datapoints = split(cd, "|");
-        connections.push_back({
-                                      neatInstance->connection_genes[std::stoi(connection_datapoints[0])],
-                                      std::stoi(connection_datapoints[1]) != 0,
-                                      std::stof(connection_datapoints[2])
-
-                              });
-    }
-}
-
-
-Network Network::loadNthBest(const string &file, unsigned int rank) {
-    //initialize a neatInstance to hold the neccessary parameters (input_count, output_count, node & connection genes)
-    NeatInstance nt;
-    nt.loadParameters(file);
-    //make sure we don't overshoot the file
-    rank = std::min(rank, nt.population);
-    //init a stream of the .nt file and read it
-    std::ifstream savefile;
-    savefile.open(file);
-    string line;
-    //skip the 9 parameter lines and rank-1 lines to get to the fitting network
-    for (int i = 0; i < 9 + rank; i++) {
-        std::getline(savefile, line);
-    }
-    //init the network via the constructor
-    return Network(&nt, line);
-}
-
 
 float sigmoid(float x) {
     return 1.f / (1.f + expf(-4.9f * x));
 }
 
 
-float getRandomFloat(float lo, float hi) {
+float rnd_f(float lo, float hi) {
     return lo + static_cast <float> (GetRandomValue(0, RAND_MAX)) / (static_cast <float> (RAND_MAX / (hi - lo)));
 }

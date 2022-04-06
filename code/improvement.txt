@@ -1,0 +1,4 @@
+change sigmoid -> s * 2 - 1
+flatten sigmoid -> -0.1 statt -4.9
+squish statt sigmoid, damit verschiedene Werte relevant werden
+WARUM nur wenn Fruch rechts unten?
