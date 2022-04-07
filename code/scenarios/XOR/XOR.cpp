@@ -13,6 +13,8 @@ void testXOR(){
 
     Network best = neatInstance.getNetworksSorted()[0];
 
+    std::cout << "Score: " << best.getFitness() << "\n";
+
     for (int a = 0; a < 2; a++) {
         for (int b = 0; b < 2; b++) {
             std::cout << a << " ^ " << b << " = " << best.calculate({float(a), float(b), 1.f})[0] << "\n";

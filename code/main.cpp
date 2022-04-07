@@ -6,4 +6,6 @@
 
 int main() {
     SetRandomSeed(clock());
+
+    testXOR();
 }

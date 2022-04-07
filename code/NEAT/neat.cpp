@@ -168,9 +168,8 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
         for (Species &s: species) {
             s.total_fitness = 0.f;
             for (Network &n: s.networks) {
-                n.setFitness(std::max(n.getFitness() / float(s.networks.size()),1.f));
-                fitness_total += n.getFitness();
-                s.total_fitness += n.getFitness();
+                fitness_total += n.getFitness() / float(s.networks.size());
+                s.total_fitness += n.getFitness() / float(s.networks.size());
             }
         }
 
@@ -314,7 +313,7 @@ void NeatInstance::save() const {
 }
 
 vector<Network> NeatInstance::getNetworksSorted() {
-    std::sort(networks.begin(), networks.end(), [](const Network &n1, const Network &n2){return n1.getFitness() < n2.getFitness();});
+    std::sort(networks.begin(), networks.end(), [](const Network &n1, const Network &n2){return n1.getFitness() > n2.getFitness();});
     return networks;
 }
 
