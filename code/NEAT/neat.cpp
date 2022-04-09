@@ -60,7 +60,7 @@ NeatInstance::NeatInstance(const string &file) {
     vector<string> connection_data = split(line, ";");
     for (string &cd: connection_data) {
         vector<string> datapoints = split(cd, "|");
-        connection_genes.push_back(
+        connection_genes.insert(
                 {
                         static_cast<connection_id>(std::stoi(datapoints[0])),
                         static_cast<connection_id>(std::stoi(datapoints[1])),
@@ -238,7 +238,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
         if (generation_number % 10 == 0) {
             std::fill(used_nodes.begin(), used_nodes.end(), false);
             for (Network &n: networks) {
-                for (const Connection &c: n.getConnections()) {
+                for (const auto &[id,c]: n.getConnections()) {
                     used_nodes[c.gene.start] = true;
                     used_nodes[c.gene.end] = true;
                 }
@@ -317,6 +317,15 @@ void NeatInstance::save() const {
 vector<Network> NeatInstance::getNetworksSorted() {
     std::sort(networks.begin(), networks.end(), [](const Network &n1, const Network &n2){return n1.getFitness() > n2.getFitness();});
     return networks;
+}
+
+Connection NeatInstance::request_connection(node_id start, node_id end, float weight) {
+    Connection_Gene ng = {connection_id(connection_genes.size()), start, end};
+    if(!connection_genes.contains(ng)){
+        connection_genes.insert(ng);
+    }
+
+    return {*connection_genes.find(ng) , true, weight};
 }
 
 vector<string> split(const string &string_to_split, const string &delimiter) {

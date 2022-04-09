@@ -6,7 +6,7 @@
 #include "rayNEAT.h"
 
 bool operator==(Connection_Gene a, Connection_Gene b) {
-    return a.id == b.id;
+    return a.start == b.start && a.end == b.end;
 }
 
 bool operator<(Connection_Gene a, Connection_Gene b) {

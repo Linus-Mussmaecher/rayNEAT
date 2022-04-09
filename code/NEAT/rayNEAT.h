@@ -21,8 +21,10 @@
 #include <fstream>
 #include <filesystem>
 #include <utility>
+#include <set>
+#include <unordered_set>
 
-using std::vector, std::array, std::map, std::string, std::list, std::pair;
+using std::vector, std::array, std::map, std::string, std::list, std::pair, std::set, std::unordered_set;
 
 //parameters
 
@@ -30,8 +32,14 @@ using std::vector, std::array, std::map, std::string, std::list, std::pair;
 //forward declarations
 class NeatInstance;
 
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                            Node                            |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
+
 typedef unsigned int node_id;
-typedef unsigned int connection_id;
 
 struct Node_Gene {
     node_id id;
@@ -39,18 +47,39 @@ struct Node_Gene {
     bool used;
 };
 
-bool operator==(Node_Gene a, Node_Gene b);
-
-bool operator<(Node_Gene a, Node_Gene b);
-
-bool operator>(Node_Gene a, Node_Gene b);
-
-
 struct Node {
     Node_Gene gene;
     float y;
     float value;
 };
+
+//connection compare as equal if their ids are equal
+bool operator==(Node_Gene a, Node_Gene b);
+
+//nodes are sorted based on their id
+bool operator<(Node_Gene a, Node_Gene b);
+
+//nodes are sorted based on their id
+bool operator>(Node_Gene a, Node_Gene b);
+
+template<>
+struct std::hash<Node_Gene>
+{
+    std::size_t operator()(Node_Gene const& ng) const noexcept
+    {
+        return ng.id; // or use boost::hash_combine
+    }
+};
+
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                        Connection                          |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
+
+
+typedef unsigned int connection_id;
 
 struct Connection_Gene {
     connection_id id;
@@ -58,17 +87,37 @@ struct Connection_Gene {
     node_id end;
 };
 
-bool operator==(Connection_Gene a, Connection_Gene b);
-
-bool operator<(Connection_Gene a, Connection_Gene b);
-
-bool operator>(Connection_Gene a, Connection_Gene b);
-
 struct Connection {
     Connection_Gene gene;
     bool enabled;
     float weight;
 };
+
+//connection compare as equal if their start- and endpoints are equal
+bool operator==(Connection_Gene a, Connection_Gene b);
+
+//connections are sorted based on their id
+bool operator<(Connection_Gene a, Connection_Gene b);
+
+//connections are sorted based on their id
+bool operator>(Connection_Gene a, Connection_Gene b);
+
+template<>
+struct std::hash<Connection_Gene>
+{
+    std::size_t operator()(Connection_Gene const& cg) const noexcept
+    {
+        return (cg.start << 16) ^ cg.end;
+    }
+};
+
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                          Network                           |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
+
 
 class Network {
 public:
@@ -121,7 +170,7 @@ public:
 
     void setFitness(float fitness);
 
-    [[nodiscard]] const vector<Connection> &getConnections() const;
+    [[nodiscard]] const map<connection_id, Connection> & getConnections() const;
 
     [[nodiscard]] const map<node_id, float> &getNodeValues() const;
 
@@ -134,8 +183,8 @@ public:
     static float getCompatibilityDistance(Network a, Network b);
 
 private:
-    //vector of all connections in this network
-    vector<Connection> connections;
+    //map of all connections in this network, mapping their id to the full struct (for sorting + easy access)
+    map<connection_id , Connection> connections;
     //values of the nodes in this network. first input_count are reserved for input nodes, next output_count for output nodes, rest is hidden nodes
     map<node_id, float> node_values;
     //the last calculated fitness value of this network
@@ -149,6 +198,13 @@ struct Species {
     float total_fitness = 0.f;
     vector<Network> networks;
 };
+
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                           NEAT                             |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
 
 
 //a modified sigmoid function
@@ -202,7 +258,10 @@ public:
 
     unsigned int node_count;
     vector<bool> used_nodes;
-    vector<Connection_Gene> connection_genes;
+    unordered_set<Connection_Gene> connection_genes;
+
+    //returns a connection with the requested weight from node start to node end, registering it with the archives if neccessary
+    Connection request_connection(node_id start, node_id end, float weight);
 
     // ------------ Execution options ------------
 
@@ -237,6 +296,13 @@ private:
     //should only be called by the public runNeat functions
     void runNeatHelper(const std::function<void()> &evalNetworks);
 };
+
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                          Utility                           |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
 
 
 //Helper method that's splits a string into subcomponents. If the string ends with the delimiter, an empty string will NOT be included
