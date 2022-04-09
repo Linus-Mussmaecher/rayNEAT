@@ -319,13 +319,13 @@ vector<Network> NeatInstance::getNetworksSorted() {
     return networks;
 }
 
-Connection NeatInstance::request_connection(node_id start, node_id end, float weight) {
+Connection_Gene NeatInstance::request_connection_gene(node_id start, node_id end, float weight) {
     Connection_Gene ng = {connection_id(connection_genes.size()), start, end};
     if(!connection_genes.contains(ng)){
         connection_genes.insert(ng);
     }
 
-    return {*connection_genes.find(ng) , true, weight};
+    return *connection_genes.find(ng);
 }
 
 vector<string> split(const string &string_to_split, const string &delimiter) {

@@ -145,10 +145,10 @@ void Network::mutateAddConnection() {
 }
 
 void Network::addConnection(node_id start, node_id end, float weight) {
-    //request a connection from the connection archives
-    Connection nc = neat_instance->request_connection(start, end, weight);
-    //add it to the local map
-    connections[nc.gene.id] = nc;
+    //request a connection_gene from the connection archives
+    Connection_Gene cg = neat_instance->request_connection_gene(start, end, weight);
+    //add an enabled connection with that gene and the requested weight to the local map
+    connections[cg.id] = {cg, true, weight};
     //make sure the start & end node of this connection are known
     node_values.try_emplace(start, 0.f);
     node_values.try_emplace(end, 0.f);

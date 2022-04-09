@@ -261,7 +261,7 @@ public:
     unordered_set<Connection_Gene> connection_genes;
 
     //returns a connection with the requested weight from node start to node end, registering it with the archives if neccessary
-    Connection request_connection(node_id start, node_id end, float weight);
+    Connection_Gene request_connection_gene(node_id start, node_id end, float weight);
 
     // ------------ Execution options ------------
 
