@@ -8,7 +8,7 @@ find_package(raylib REQUIRED)
 include_directories(${RAYLIB_INCLUDE_DIRS})
 
 
-add_executable(rayNEAT code/main.cpp code/NEAT/rayNEAT.h code/NEAT/connection_gene.cpp code/NEAT/network.cpp code/NEAT/neat.cpp code/scenarios/XOR/XOR.cpp code/scenarios/XOR/XOR.h)
+add_executable(rayNEAT code/main.cpp code/NEAT/rayNEAT.h code/NEAT/connection_gene.cpp code/NEAT/network.cpp code/NEAT/neat.cpp code/scenarios/XOR/XOR.cpp code/scenarios/XOR/XOR.h code/NEAT/node_gene.cpp)
 
 #raylib link
 target_link_libraries(rayNEAT ${RAYLIB_LIBRARIES})

@@ -160,7 +160,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
 
         //step 5: a random network is chosen as species representative for the next generation
         for (Species &s: species) {
-            s.representative = s.networks[GetRandomValue(0, int(s.networks.size() - 1))];
+            s.representative = s.networks[0];
         }
 
         //step 6: fitness sharing
@@ -244,6 +244,8 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
                 }
             }
         }
+
+        //TODO: Sometimes the best members of a species get deleted, that should absolutely NOT happen
     }
 }
 
@@ -302,7 +304,7 @@ void NeatInstance::save() const {
     //used nodes is not saved -> on eventual run it would be updated soon enough
     //save connection gene data -> this allows networks to only save innovation numbers
     for (const Connection_Gene &cg: connection_genes) {
-        savefile << cg.innovation << "|" << cg.start << "|" << cg.end << ";";
+        savefile << cg.id << "|" << cg.start << "|" << cg.end << ";";
     }
     savefile << "\n";
     //save networks

@@ -146,7 +146,7 @@ void Network::addConnection(node_id start, node_id end, float weight) {
     //search the global innovation list for a fitting gene
     for (Connection_Gene &cg: neat_instance->connection_genes) {
         if (cg.start == start && cg.end == end) {
-            newID = cg.innovation;
+            newID = cg.id;
         }
     }
     //add the new connection to the list
@@ -161,7 +161,7 @@ void Network::addConnection(node_id start, node_id end, float weight) {
     } else {
         //the connection already existed -> sort connnection list to ensure correct ordering
         std::sort(connections.begin(), connections.end(),
-                  [](Connection &a, Connection &b) { return a.gene.innovation < b.gene.innovation; });
+                  [](Connection &a, Connection &b) { return a.gene.id < b.gene.id; });
     }
     //make sure the start & end node of this connection are known
     node_values.try_emplace(start, 0.f);
@@ -279,7 +279,7 @@ void Network::print() const {
     std::cout << "\nConnections:\n";
     for (const Connection &c: connections) {
         std::cout << "\t" << (c.enabled ? "" : "[");
-        std::cout << c.gene.innovation << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight;
+        std::cout << c.gene.id << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight;
         std::cout << (c.enabled ? "" : "]") << "\n";
     }
 }
@@ -307,7 +307,7 @@ float Network::getCompatibilityDistance(Network a, Network b) {
             //excess gene of a
             E++;
             i++;
-        } else if (i < a.connections.size() && a.connections[i].gene.innovation < b.connections[j].gene.innovation) {
+        } else if (i < a.connections.size() && a.connections[i].gene.id < b.connections[j].gene.id) {
             //disjoint gene of a
             D++;
             i++;
@@ -315,7 +315,7 @@ float Network::getCompatibilityDistance(Network a, Network b) {
             //excess gene of b
             E++;
             j++;
-        } else if (j < b.connections.size() && a.connections[i].gene.innovation > b.connections[j].gene.innovation) {
+        } else if (j < b.connections.size() && a.connections[i].gene.id > b.connections[j].gene.id) {
             //disjoint gene of b
             D++;
             j++;
@@ -343,7 +343,7 @@ string Network::toString() const {
     }
     res << "||";
     for (const Connection &c: connections) {
-        res << c.gene.innovation << "|" << c.enabled << "|" << c.weight << ";";
+        res << c.gene.id << "|" << c.enabled << "|" << c.weight << ";";
     }
     return res.str();
 }

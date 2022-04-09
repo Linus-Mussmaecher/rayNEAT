@@ -6,13 +6,13 @@
 #include "rayNEAT.h"
 
 bool operator==(Connection_Gene a, Connection_Gene b) {
-    return a.innovation == b.innovation;
+    return a.id == b.id;
 }
 
 bool operator<(Connection_Gene a, Connection_Gene b) {
-    return a.innovation < b.innovation;
+    return a.id < b.id;
 }
 
 bool operator>(Connection_Gene a, Connection_Gene b) {
-    return a.innovation > b.innovation;
+    return a.id > b.id;
 }

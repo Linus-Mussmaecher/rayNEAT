@@ -33,8 +33,27 @@ class NeatInstance;
 typedef unsigned int node_id;
 typedef unsigned int connection_id;
 
+struct Node_Gene {
+    node_id id;
+    float x;
+    bool used;
+};
+
+bool operator==(Node_Gene a, Node_Gene b);
+
+bool operator<(Node_Gene a, Node_Gene b);
+
+bool operator>(Node_Gene a, Node_Gene b);
+
+
+struct Node {
+    Node_Gene gene;
+    float y;
+    float value;
+};
+
 struct Connection_Gene {
-    connection_id innovation;
+    connection_id id;
     node_id start;
     node_id end;
 };
@@ -56,8 +75,9 @@ public:
     // ------------ constructors ------------
 
     explicit Network(NeatInstance *neatInstance);
+
     //loads a network based on a neatInstance and a line from a .nt file
-    explicit Network(NeatInstance *neatInstance, const string& line);
+    explicit Network(NeatInstance *neatInstance, const string &line);
 
     // ------------ mutations ------------
 
@@ -91,6 +111,7 @@ public:
 
     //calculates the value of a single node based on its predecessors in the network
     void calculateNodeValue(node_id node);
+
     //sets the input values of the network, calculates and returns the output values
     vector<float> calculate(vector<float> inputs);
 
@@ -120,7 +141,7 @@ private:
     //the last calculated fitness value of this network
     float fitness;
     //the neatInstace this network belongs to
-    NeatInstance* neat_instance;
+    NeatInstance *neat_instance;
 };
 
 struct Species {
@@ -139,8 +160,9 @@ public:
 
     //initializes a fresh neatInstance with the provided parameteres. non-fixed parameters are public and may be accessed afterwards
     explicit NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int population);
+
     //initializes a neatInstance from the provided file, loading its fixed parameters. non-fixed parameters may be adjusted for the continuation
-    explicit NeatInstance(const string& file);
+    explicit NeatInstance(const string &file);
 
     // ------------ Parameters ------------
 
@@ -186,18 +208,22 @@ public:
 
     //performs the NEAT algorithm. Each network's fitness is evaluated with the provided function
     void runNeat(int (*evalNetwork)(Network));
+
     //performs the NEAT algorithm. Each networks's fitness is evaluated by letting them compete with each other network
     //using the provided function and averaging fitness results
     void runNeat(pair<int, int> (*competeNetworks)(Network, Network));
 
     // ------------ Output ------------
 
+    //returns a vector of all managed networks sorted by their last known fitness value in descending order
     vector<Network> getNetworksSorted();
 
     //prints information about all networks to the standard output
     void print();
+
     //saves the current generation to the file specified in filepath
     void save() const;
+
 private:
     //all networks managed by this instance
     vector<Network> networks;
@@ -214,7 +240,7 @@ private:
 
 
 //Helper method that's splits a string into subcomponents. If the string ends with the delimiter, an empty string will NOT be included
-vector<string> split(const string& string_to_split, const string& delimiter);
+vector<string> split(const string &string_to_split, const string &delimiter);
 
 
 //returns a randomly selected float between the two passed values
