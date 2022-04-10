@@ -17,6 +17,7 @@
 #include <iostream>
 #include <functional>
 #include <algorithm>
+#include <numeric>
 #include <sstream>
 #include <fstream>
 #include <filesystem>
