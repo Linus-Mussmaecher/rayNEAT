@@ -180,6 +180,9 @@ public:
     //print a human-readable description to the standard output
     void print() const;
 
+    //draw a rendering of the network to the raylib. Must already be in drawing mode.
+    void draw() const;
+
     //return a somewhat human-readable and very machine readable string that describes this networks nodes & connections. connections only print their innovation!
     [[nodiscard]] string to_string() const;
 
@@ -306,6 +309,11 @@ private:
     //the passed function must set the fitness values of all the networks in the list.
     //should only be called by the public runNeat functions
     void run_neat_helper(const std::function<void()> &evalNetworks);
+
+    //assinges each network in the networks list to a species in the species list. May create new species to accomodate all networks. May remove extince species.
+    void assign_networks_to_species();
+
+    static bool sort_by_fitness_desc(const Network &n1, const Network &n2);
 };
 
 /*   +------------------------------------------------------------+

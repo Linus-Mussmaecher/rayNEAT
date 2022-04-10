@@ -343,6 +343,10 @@ void Network::print() const {
     }
 }
 
+void Network::draw() const{
+
+}
+
 
 float sigmoid(float x) {
     return 1.f / (1.f + expf(-4.9f * x));
