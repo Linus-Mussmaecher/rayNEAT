@@ -244,6 +244,9 @@ public:
     float probability_mutate_weight_pertube = 0.9f;
     float mutate_weight_pertube_strength = 0.5f;
 
+    //percentage of networks killed off each round
+    float elimination_percentage = 0.5f;
+
     //weights for calculating network distance
     float c1 = 1.0f;
     float c2 = 1.0f;

@@ -173,14 +173,13 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
                 s.total_fitness += n.getFitness() / float(s.networks.size());
             }
         }
-        
 
         //step 5-9
         //calculate the total number of networks to be eliminated
         int elimination_total = std::accumulate(
                 species.begin(), species.end(), 0,
-                [](int sum, const Species &s) {
-                    return sum + int(s.networks.size()) / 2;
+                [this](int sum, const Species &s) {
+                    return sum + int(float(s.networks.size()) * elimination_percentage);
                 }
         );
         
@@ -190,7 +189,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
 
         for (Species &s: species) {
             //each species eliminates half of its members (-> atleast 1 member remaining)
-            int elimination = int(s.networks.size()) / 2;
+            int elimination = int(float(s.networks.size()) * elimination_percentage);
             //each species receives offspring according to its fitness
             int offspring = int(s.total_fitness / fitness_total * float(elimination_total));
 
