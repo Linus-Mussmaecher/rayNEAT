@@ -8,6 +8,7 @@
 Network::Network(Neat_Instance *neatInstance) : neat_instance(neatInstance), fitness(0) {
     for (int i = 0; i < neat_instance->input_count + neat_instance->output_count; i++) {
         node_values[i] = 0.f;
+
     }
     for (int i = 0; i < neat_instance->input_count; i++) {
         /*for (int j = input_count; j < input_count + output_count; j++) {
@@ -345,9 +346,4 @@ void Network::print() const {
 
 void Network::draw() const{
 
-}
-
-
-float sigmoid(float x) {
-    return 1.f / (1.f + expf(-4.9f * x));
 }

@@ -271,7 +271,7 @@ void Neat_Instance::print() {
     printf("+-----+--------+-----+-----+\n");
     for (Species &s: species) {
         printf(
-                "\t| %3llu | %6.1f | %3llu | %3llu |\n",
+                "| %3llu | %6.1f | %3llu | %3llu |\n",
                 s.networks.size(),
                 s.networks[0].getFitness(),
                 s.networks[0].getNodeValues().size(),
@@ -320,6 +320,23 @@ vector<Network> Neat_Instance::get_networks_sorted() {
               [](const Network &n1, const Network &n2) { return n1.getFitness() > n2.getFitness(); });
     return networks;
 }
+
+Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
+    //for now: just register & return a new node between the old ones
+    Node_Gene ng = {
+            node_id(node_genes.size()),
+            (node_genes[split.start].x + node_genes[split.end].x)/2.f,
+            (node_genes[split.start].y + node_genes[split.end].y)/2.f + rnd_f(0.f, 0.1f),
+            true
+            };
+    node_genes.push_back(ng);
+    return ng;
+}
+
+Node_Gene Neat_Instance::request_node_gene(node_id id) {
+    return node_genes[id];
+}
+
 
 Connection_Gene Neat_Instance::request_connection_gene(node_id start, node_id end) {
     Connection_Gene ng = {connection_id(connection_genes.size()), start, end};

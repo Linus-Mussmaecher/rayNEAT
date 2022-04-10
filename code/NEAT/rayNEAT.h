@@ -47,12 +47,12 @@ typedef unsigned int node_id;
 struct Node_Gene {
     node_id id;
     float x;
+    float y;
     bool used;
 };
 
 struct Node {
     Node_Gene gene;
-    float y;
     float value;
 };
 
@@ -191,6 +191,8 @@ public:
 private:
     //map of all connections in this network, mapping their id to the full struct (for sorting + easy access)
     map<connection_id , Connection> connections;
+    //map of all nodes in this network, mapping their id to the full struct
+    map<node_id, Node> nodes;
     //values of the nodes in this network. first input_count are reserved for input nodes, next output_count for output nodes, rest is hidden nodes
     map<node_id, float> node_values;
     //the last calculated fitness value of this network
@@ -207,14 +209,29 @@ struct Species {
 
 /*   +------------------------------------------------------------+
  *   |                                                            |
+ *   |                   Activation functions                     |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
+
+//a modified sigmoid function
+float sigmoid(float x);
+
+float relu(float x);
+
+float heavyside(float x);
+
+float softplus(float x);
+
+float gaussian(float x);
+
+/*   +------------------------------------------------------------+
+ *   |                                                            |
  *   |                           NEAT                             |
  *   |                                                            |
  *   +------------------------------------------------------------+
  */
 
-
-//a modified sigmoid function
-float sigmoid(float x);
 
 class Neat_Instance {
 public:
@@ -268,9 +285,14 @@ public:
     unsigned int node_count;
     vector<bool> used_nodes;
 
+    //returns a Node_Gene with the requested ID (will fail if the id doesnt exist)
+    Node_Gene request_node_gene(node_id id);
+    //returns a node to split the passed connection gene //TODO: Implement reusing of nodes
+    Node_Gene request_node_gene(Connection_Gene split);
+
     //returns a connection with the requested weight from node start to node end, registering it with the archives if neccessary
     Connection_Gene request_connection_gene(node_id start, node_id end);
-    //returns a connection with the requested id
+    //returns a connection with the requested ID (will fail if the id doesnt exist)
     Connection_Gene request_connection_gene(connection_id id);
 
     // ------------ Execution options ------------
@@ -300,6 +322,8 @@ private:
     vector<Network> networks;
     //the same networks separated into species
     list<Species> species;
+    //the archive of all nodes among all networks
+    vector<Node_Gene> node_genes;
     //the archive of all connection among all networks
     unordered_set<Connection_Gene> connection_genes;
     //the current number of simulated generations
