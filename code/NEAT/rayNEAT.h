@@ -26,11 +26,13 @@
 
 using std::vector, std::array, std::map, std::string, std::list, std::pair, std::set, std::unordered_set;
 
-//parameters
-
-
 //forward declarations
-class NeatInstance;
+struct Node_Gene;
+struct Node;
+struct Connection_Gene;
+struct Connection;
+class Neat_Instance;
+class Network;
 
 /*   +------------------------------------------------------------+
  *   |                                                            |
@@ -67,7 +69,7 @@ struct std::hash<Node_Gene>
 {
     std::size_t operator()(Node_Gene const& ng) const noexcept
     {
-        return ng.id; // or use boost::hash_combine
+        return ng.id;
     }
 };
 
@@ -123,10 +125,10 @@ class Network {
 public:
     // ------------ constructors ------------
 
-    explicit Network(NeatInstance *neatInstance);
+    explicit Network(Neat_Instance *neatInstance);
 
     //loads a network based on a neatInstance and a line from a .nt file
-    explicit Network(NeatInstance *neatInstance, const string &line);
+    explicit Network(Neat_Instance *neatInstance, const string &line);
 
     // ------------ mutations ------------
 
@@ -134,19 +136,19 @@ public:
     void mutate();
 
     //randomly mutates the weights in this network
-    void mutateWeights();
+    void mutate_weights();
 
     //adds a new node into the network
-    void mutateAddNode();
+    void mutate_addnode();
 
     //adds a completely new link into the network. Registers this link to the global innovation list
-    void mutateAddConnection();
+    void mutate_addconnection();
 
     //adds a completely new node to the network not yet used by any other network
-    node_id addNewNode(NeatInstance *neatInstance);
+    node_id add_node(Neat_Instance *neatInstance);
 
     //adds a new connection to the network and if neccessary registers it with the global innovation list
-    void addConnection(node_id start, node_id end, float weight);
+    void add_connection(node_id start, node_id end, float weight);
 
     // ------------ reproduction ------------
 
@@ -154,12 +156,12 @@ public:
     static Network reproduce(Network mother, Network father);
 
     //adds a connection to a network INHERITED from a parent. This does assume the connection is already registered globally
-    void addInheritedConnection(Connection c);
+    void add_inherited_connection(Connection c);
 
     // ------------ calculation ------------
 
     //calculates the value of a single node based on its predecessors in the network
-    void calculateNodeValue(node_id node);
+    void calculate_node_value(node_id node);
 
     //sets the input values of the network, calculates and returns the output values
     vector<float> calculate(vector<float> inputs);
@@ -178,9 +180,9 @@ public:
     void print() const;
 
     //return a somewhat human-readable and very machine readable string that describes this networks nodes & connections. connections only print their innovation!
-    [[nodiscard]] string toString() const;
+    [[nodiscard]] string to_string() const;
 
-    static float getCompatibilityDistance(Network a, Network b);
+    static float get_compatibility_distance(Network a, Network b);
 
 private:
     //map of all connections in this network, mapping their id to the full struct (for sorting + easy access)
@@ -190,7 +192,7 @@ private:
     //the last calculated fitness value of this network
     float fitness;
     //the neatInstace this network belongs to
-    NeatInstance *neat_instance;
+    Neat_Instance *neat_instance;
 };
 
 struct Species {
@@ -210,15 +212,15 @@ struct Species {
 //a modified sigmoid function
 float sigmoid(float x);
 
-class NeatInstance {
+class Neat_Instance {
 public:
     // ------------ Constructors ------------
 
     //initializes a fresh neatInstance with the provided parameteres. non-fixed parameters are public and may be accessed afterwards
-    explicit NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int population);
+    explicit Neat_Instance(unsigned short input_count, unsigned short output_count, unsigned int population);
 
     //initializes a neatInstance from the provided file, loading its fixed parameters. non-fixed parameters may be adjusted for the continuation
-    explicit NeatInstance(const string &file);
+    explicit Neat_Instance(const string &file);
 
     // ------------ Parameters ------------
 
@@ -254,28 +256,29 @@ public:
     //the path to the folder that holds resulting files of network generations
     string folderpath;
 
-    // ------------ Gene archives ------------
+    // ------------ gene providers for networks ------------
 
     unsigned int node_count;
     vector<bool> used_nodes;
-    unordered_set<Connection_Gene> connection_genes;
 
     //returns a connection with the requested weight from node start to node end, registering it with the archives if neccessary
-    Connection_Gene request_connection_gene(node_id start, node_id end, float weight);
+    Connection_Gene request_connection_gene(node_id start, node_id end);
+    //returns a connection with the requested id
+    Connection_Gene request_connection_gene(connection_id id);
 
     // ------------ Execution options ------------
 
     //performs the NEAT algorithm. Each network's fitness is evaluated with the provided function
-    void runNeat(int (*evalNetwork)(Network));
+    void run_neat(int (*evalNetwork)(Network));
 
     //performs the NEAT algorithm. Each networks's fitness is evaluated by letting them compete with each other network
     //using the provided function and averaging fitness results
-    void runNeat(pair<int, int> (*competeNetworks)(Network, Network));
+    void run_neat(pair<int, int> (*compete_networks)(Network, Network));
 
     // ------------ Output ------------
 
     //returns a vector of all managed networks sorted by their last known fitness value in descending order
-    vector<Network> getNetworksSorted();
+    vector<Network> get_networks_sorted();
 
     //prints information about all networks to the standard output
     void print();
@@ -284,17 +287,21 @@ public:
     void save() const;
 
 private:
+    // ------------ NEAT data  ------------
+
     //all networks managed by this instance
     vector<Network> networks;
     //the same networks separated into species
-    vector<Species> species;
+    list<Species> species;
+    //the archive of all connection among all networks
+    unordered_set<Connection_Gene> connection_genes;
     //the current number of simulated generations
     unsigned int generation_number;
 
     //performs the NEAT-algorithm on the network list.
     //the passed function must set the fitness values of all the networks in the list.
     //should only be called by the public runNeat functions
-    void runNeatHelper(const std::function<void()> &evalNetworks);
+    void run_neat_helper(const std::function<void()> &evalNetworks);
 };
 
 /*   +------------------------------------------------------------+

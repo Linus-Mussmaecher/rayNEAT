@@ -6,21 +6,25 @@
 
 void testXOR(){
 
-    NeatInstance neatInstance = NeatInstance(3,1,100);
-    //NeatInstance neatInstance = NeatInstance("./XOR/NEAT_Generation_100.rn");
-    neatInstance.generation_target = 150;
+    //Neat_Instance neatInstance = Neat_Instance(3, 1, 100);
+    Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_250.rn");
+    neatInstance.generation_target = 250;
     neatInstance.folderpath = "./XOR";
-    neatInstance.runNeat(&testNetworkXOR);
+    neatInstance.run_neat(&testNetworkXOR);
 
-    Network best = neatInstance.getNetworksSorted()[0];
+    Network best = neatInstance.get_networks_sorted()[0];
 
     std::cout << "Score: " << best.getFitness() << "\n";
 
+    float res = 0;
     for (int a = 0; a < 2; a++) {
         for (int b = 0; b < 2; b++) {
-            std::cout << a << " ^ " << b << " = " << best.calculate({float(a), float(b), 1.f})[0] << "\n";
+            float v = best.calculate({float(a), float(b), 1.f})[0];
+            std::cout << a << " ^ " << b << " = " << v << "\n";
+            res += abs(v - float(a ^ b));
         }
     }
+    std::cout << "Score: " << int((4.f - res) * (4.f - res) * 100) << "\n";
 }
 
 int testNetworkXOR(Network n){

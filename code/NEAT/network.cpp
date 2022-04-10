@@ -5,7 +5,7 @@
 
 #include "rayNEAT.h"
 
-Network::Network(NeatInstance *neatInstance) :  neat_instance(neatInstance), fitness(0) {
+Network::Network(Neat_Instance *neatInstance) : neat_instance(neatInstance), fitness(0) {
     for (int i = 0; i < neat_instance->input_count + neat_instance->output_count; i++) {
         node_values[i] = 0.f;
     }
@@ -13,12 +13,12 @@ Network::Network(NeatInstance *neatInstance) :  neat_instance(neatInstance), fit
         /*for (int j = input_count; j < input_count + output_count; j++) {
             addConnection(neatInstance, i, j, 1.f);
         }*/
-        addConnection(i, GetRandomValue(neat_instance->input_count,
-                                        neat_instance->input_count + neat_instance->output_count - 1), 1.f);
+        add_connection(i, GetRandomValue(neat_instance->input_count,
+                                         neat_instance->input_count + neat_instance->output_count - 1), 1.f);
     }
 }
 
-Network::Network(NeatInstance *neatInstance, const string &line) :  neat_instance(neatInstance) {
+Network::Network(Neat_Instance *neatInstance, const string &line) : neat_instance(neatInstance) {
     vector<string> datapoints = split(line, "||");
     //fitness
     fitness = std::stof(datapoints[0]);
@@ -34,8 +34,7 @@ Network::Network(NeatInstance *neatInstance, const string &line) :  neat_instanc
         //search gene with fitting id and add it
         connection_id id = std::stoi(connection_datapoints[0]);
         connections[id] = {
-                                      *std::find_if(neat_instance->connection_genes.begin(), neat_instance->connection_genes.end(),
-                                                [id](const Connection_Gene &cg){return cg.id == id;}),
+                                      neat_instance->request_connection_gene(id),
                                       std::stoi(connection_datapoints[1]) != 0,
                                       std::stof(connection_datapoints[2])
                               };
@@ -45,18 +44,18 @@ Network::Network(NeatInstance *neatInstance, const string &line) :  neat_instanc
 
 void Network::mutate() {
     if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_weight) {
-        mutateWeights();
+        mutate_weights();
     }
     if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_node) {
-        mutateAddNode();
+        mutate_addnode();
     }
     if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_link) {
-        mutateAddConnection();
+        mutate_addconnection();
     }
 }
 
 
-void Network::mutateWeights() {
+void Network::mutate_weights() {
     for (auto &[id, c] : connections) {
         if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_weight_pertube) {
             //slightly pertube weight
@@ -69,21 +68,21 @@ void Network::mutateWeights() {
 }
 
 
-void Network::mutateAddNode() {
+void Network::mutate_addnode() {
     //select a random connection to split with a node
     int split_index = GetRandomValue(0, int(connections.size() - 1));
     connection_id split_id = std::next(connections.begin(), split_index)->first;
     Connection split = connections[split_id];
     //get new node id and inform the instance that a new node has been added
-    node_id newNode = addNewNode(neat_instance);
+    node_id newNode = add_node(neat_instance);
     //disable the old connection
     connections[split_id].enabled = false;
     //add new connections from old start to new node to old end
-    addConnection(split.gene.start, newNode, split.weight);
-    addConnection(newNode, split.gene.end, 1.f);
+    add_connection(split.gene.start, newNode, split.weight);
+    add_connection(newNode, split.gene.end, 1.f);
 }
 
-node_id Network::addNewNode(NeatInstance *neatInstance) {
+node_id Network::add_node(Neat_Instance *neatInstance) {
     node_id n = 0;
     while (n < neatInstance->node_count && neatInstance->used_nodes[n]) n++;
     if (n == neatInstance->node_count) {
@@ -99,7 +98,7 @@ node_id Network::addNewNode(NeatInstance *neatInstance) {
 }
 
 
-void Network::mutateAddConnection() {
+void Network::mutate_addconnection() {
     //create a list of all used node_ids
     list<node_id> start_candidates;
     std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates),
@@ -140,18 +139,26 @@ void Network::mutateAddConnection() {
     }
     //if a connection was possible, add it. Otherwise, this network is already fully connected
     if (found) {
-        addConnection(start, end, rnd_f(-2.f, 2.f));
+        add_connection(start, end, rnd_f(-2.f, 2.f));
     }
 }
 
-void Network::addConnection(node_id start, node_id end, float weight) {
+void Network::add_connection(node_id start, node_id end, float weight) {
     //request a connection_gene from the connection archives
-    Connection_Gene cg = neat_instance->request_connection_gene(start, end, weight);
+    Connection_Gene cg = neat_instance->request_connection_gene(start, end);
     //add an enabled connection with that gene and the requested weight to the local map
     connections[cg.id] = {cg, true, weight};
     //make sure the start & end node of this connection are known
     node_values.try_emplace(start, 0.f);
     node_values.try_emplace(end, 0.f);
+}
+
+
+void Network::add_inherited_connection(Connection c) {
+    connections[c.gene.id] = c;
+    //make sure the nodes are registered
+    node_values.try_emplace(c.gene.start, 0.f);
+    node_values.try_emplace(c.gene.end, 0.f);
 }
 
 Network Network::reproduce(Network mother, Network father) {
@@ -175,7 +182,7 @@ Network Network::reproduce(Network mother, Network father) {
             //if both parents have the gene enabled, the child has it enabled. Otherwise, it is disabled with a 75% chance
             newConnection.enabled =
                     m_it->second.enabled && f_it->second.enabled || (GetRandomValue(1, 100) > 75);
-            child.addInheritedConnection(newConnection);
+            child.add_inherited_connection(newConnection);
             m_it++;
             f_it++;
 
@@ -188,7 +195,7 @@ Network Network::reproduce(Network mother, Network father) {
 
             //excess genes in mother OR disjoint gens in mother are taken if mother fitness >= father fitness
             if (mother.fitness >= father.fitness) {
-                child.addInheritedConnection(m_it->second);
+                child.add_inherited_connection(m_it->second);
             }
             m_it++;
 
@@ -198,7 +205,7 @@ Network Network::reproduce(Network mother, Network father) {
 
             //excess genes in father OR disjoint genes in father are taken if father fitness >= mother fitness
             if (mother.fitness <= father.fitness) {
-                child.addInheritedConnection(f_it->second);
+                child.add_inherited_connection(f_it->second);
             }
             f_it++;
 
@@ -209,73 +216,7 @@ Network Network::reproduce(Network mother, Network father) {
     return child;
 }
 
-
-void Network::addInheritedConnection(Connection c) {
-    connections[c.gene.id] = c;
-    //make sure the nodes are registered
-    node_values.try_emplace(c.gene.start, 0.f);
-    node_values.try_emplace(c.gene.end, 0.f);
-}
-
-void Network::calculateNodeValue(node_id node) {
-    //calculate the weighted sum of predecessor nodes and apply activation function
-    float weight_sum = 0.f;
-    int i = 0;
-    for (const auto &[id, c]: connections) {
-        if (c.gene.end == node && c.enabled) {
-            weight_sum += node_values[c.gene.start] * c.weight;
-            i++;
-        }
-    }
-    node_values[node] = neat_instance->activation_function(weight_sum);
-}
-
-float Network::getFitness() const {
-    return fitness;
-}
-
-void Network::setFitness(float fitness_s) {
-    Network::fitness = fitness_s;
-}
-
-
-vector<float> Network::calculate(vector<float> inputs){
-    //step 1 : set inputs
-    for (int i = 0; i < neat_instance->input_count; i++) {
-        node_values[i] = i < inputs.size()  ? inputs[i] : 0.f;
-    }
-
-    //step 2: propagate values through the network
-    for (auto &[id, value]: node_values) {
-        if (id >= neat_instance->input_count + neat_instance->output_count) {
-            calculateNodeValue(id);
-        }
-    }
-
-    //step 3: caluclate value of output nodes (positioned at the start of the network) and add to result vector
-    vector<float> res;
-    for (int i = neat_instance->input_count; i < neat_instance->input_count + neat_instance->output_count; i++) {
-        calculateNodeValue(i);
-        res.push_back(node_values[i]);
-    }
-
-    return res;
-}
-
-void Network::print() const {
-    std::cout << "Nodes: ";
-    for (auto &[id, value]: node_values) {
-        std::cout << id << "  ";
-    }
-    std::cout << "\nConnections:\n";
-    for (const auto &[id, c]: connections) {
-        std::cout << "\t" << (c.enabled ? "" : "[");
-        std::cout << c.gene.id << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight;
-        std::cout << (c.enabled ? "" : "]") << "\n";
-    }
-}
-
-float Network::getCompatibilityDistance(Network a, Network b) {
+float Network::get_compatibility_distance(Network a, Network b) {
     float N = float(std::max(a.connections.size(), b.connections.size()));
     //if (N < 20) N = 1; //Stanley suggests this, and a threshhold of 3.0. -> but then once a genome reaches size 20 it is considered similar to everything else, reducing species size to 1
     float E = 0; //number of eccess genes
@@ -323,6 +264,50 @@ float Network::getCompatibilityDistance(Network a, Network b) {
     return a.neat_instance->c1 * E / N + a.neat_instance->c2 * D / N + a.neat_instance->c3 * W / M;
 }
 
+void Network::calculate_node_value(node_id node) {
+    //calculate the weighted sum of predecessor nodes and apply activation function
+    float weight_sum = 0.f;
+    int i = 0;
+    for (const auto &[id, c]: connections) {
+        if (c.gene.end == node && c.enabled) {
+            weight_sum += node_values[c.gene.start] * c.weight;
+            i++;
+        }
+    }
+    node_values[node] = neat_instance->activation_function(weight_sum);
+}
+
+vector<float> Network::calculate(vector<float> inputs){
+    //step 1 : set inputs
+    for (int i = 0; i < neat_instance->input_count; i++) {
+        node_values[i] = i < inputs.size()  ? inputs[i] : 0.f;
+    }
+
+    //step 2: propagate values through the network
+    for (auto &[id, value]: node_values) {
+        if (id >= neat_instance->input_count + neat_instance->output_count) {
+            calculate_node_value(id);
+        }
+    }
+
+    //step 3: caluclate value of output nodes (positioned at the start of the network) and add to result vector
+    vector<float> res;
+    for (int i = neat_instance->input_count; i < neat_instance->input_count + neat_instance->output_count; i++) {
+        calculate_node_value(i);
+        res.push_back(node_values[i]);
+    }
+
+    return res;
+}
+
+float Network::getFitness() const {
+    return fitness;
+}
+
+void Network::setFitness(float fitness_s) {
+    Network::fitness = fitness_s;
+}
+
 const map<connection_id, Connection> & Network::getConnections() const {
     return connections;
 }
@@ -331,7 +316,7 @@ const map<node_id, float> &Network::getNodeValues() const {
     return node_values;
 }
 
-string Network::toString() const {
+string Network::to_string() const {
     std::ostringstream res;
     res << fitness;
     res << "||";
@@ -345,12 +330,20 @@ string Network::toString() const {
     return res.str();
 }
 
-
-float sigmoid(float x) {
-    return 1.f / (1.f + expf(-4.9f * x));
+void Network::print() const {
+    std::cout << "Nodes: ";
+    for (auto &[id, value]: node_values) {
+        std::cout << id << "  ";
+    }
+    std::cout << "\nConnections:\n";
+    for (const auto &[id, c]: connections) {
+        std::cout << "\t" << (c.enabled ? "" : "[");
+        std::cout << c.gene.id << ": " << c.gene.start << " -> " << c.gene.end << ": " << c.weight;
+        std::cout << (c.enabled ? "" : "]") << "\n";
+    }
 }
 
 
-float rnd_f(float lo, float hi) {
-    return lo + static_cast <float> (GetRandomValue(0, RAND_MAX)) / (static_cast <float> (RAND_MAX / (hi - lo)));
+float sigmoid(float x) {
+    return 1.f / (1.f + expf(-4.9f * x));
 }

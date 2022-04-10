@@ -6,8 +6,8 @@
 #include "rayNEAT.h"
 
 
-NeatInstance::NeatInstance(unsigned short inputCount, unsigned short outputCount, unsigned int population)
-        : input_count(inputCount), output_count(outputCount), population(population), node_count(0),
+Neat_Instance::Neat_Instance(unsigned short input_count, unsigned short output_count, unsigned int population)
+        : input_count(input_count), output_count(output_count), population(population), node_count(0),
           repetitions(5),
           generation_number(0), generation_target(100),
           speciation_threshold(1.f), folderpath() {
@@ -31,8 +31,7 @@ NeatInstance::NeatInstance(unsigned short inputCount, unsigned short outputCount
 }
 
 
-
-NeatInstance::NeatInstance(const string &file) {
+Neat_Instance::Neat_Instance(const string &file) {
     std::ifstream savefile;
     savefile.open(file);
     string line;
@@ -69,7 +68,7 @@ NeatInstance::NeatInstance(const string &file) {
     }
 
     networks.reserve(population);
-    for(int i = 0; i < population; i++){
+    for (int i = 0; i < population; i++) {
         std::getline(savefile, line);
         networks.emplace_back(this, line);
     }
@@ -83,29 +82,29 @@ NeatInstance::NeatInstance(const string &file) {
 
 }
 
-void NeatInstance::runNeat(int (*evalNetwork)(Network)) {
-    runNeatHelper([evalNetwork, this]() {
+void Neat_Instance::run_neat(int (*evalNetwork)(Network)) {
+    run_neat_helper([evalNetwork, this]() {
         for (Network &n: networks) {
             int f = 0;
             for (int i = 0; i < repetitions; i++) {
                 f += evalNetwork(n);
             }
-            n.setFitness( std::max(float(f) / float(repetitions), 1.f));
+            n.setFitness(std::max(float(f) / float(repetitions), 1.f));
         }
     });
 }
 
 
-void NeatInstance::runNeat(pair<int, int> (*competeNetworks)(Network, Network)) {
-    runNeatHelper([competeNetworks, this]() {
+void Neat_Instance::run_neat(pair<int, int> (*compete_networks)(Network, Network)) {
+    run_neat_helper([compete_networks, this]() {
         vector<int> f;
         f.resize(networks.size());
         for (int i = 0; i < networks.size(); i++) {
             for (int j = i + 1; j < networks.size(); j++) {
                 //std::cout << i << " vs. " << j << "\n";
                 for (int r = 0; r < repetitions; r++) {
-                    auto[n1_fitness, n2_fitness]= competeNetworks(networks[i], networks[j]);
-                    auto[n1_fitnessb, n2_fitnessb]= competeNetworks(networks[j], networks[i]);
+                    auto[n1_fitness, n2_fitness]= compete_networks(networks[i], networks[j]);
+                    auto[n1_fitnessb, n2_fitnessb]= compete_networks(networks[j], networks[i]);
                     f[i] += n1_fitness + n1_fitnessb;
                     f[j] += n2_fitness + n2_fitnessb;
                 }
@@ -116,54 +115,49 @@ void NeatInstance::runNeat(pair<int, int> (*competeNetworks)(Network, Network)) 
     });
 }
 
-void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
+void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
 
+    //prime the pump by evaluation the "random" networks and sorting them
+    evalNetworks();
+    std::sort(
+            networks.begin(), networks.end(),
+            [](Network &n1, Network &n2) {
+                return n1.getFitness() > n2.getFitness();
+            }
+    );
 
-    //algorithm
     while (generation_number++ < generation_target) {
 
-        //step 1: calculate fitness for every network
-        evalNetworks();
-
-        //step 2: sort by descending fitness -> all later species will be sorted
-        std::sort(networks.begin(), networks.end(),
-                  [](Network &n1, Network &n2) { return n1.getFitness() > n2.getFitness(); });
-
-        //step 3: sort into species
+        //step 1: sort into species
         for (Network &network: networks) {
-            bool sorted = false;
-            for (Species &s: species) {
-                if (Network::getCompatibilityDistance(s.representative, network) < speciation_threshold) {
-                    s.networks.push_back(network);
-                    sorted = true;
-                    break;
-                }
+
+            //first, search for a species this network fits in
+            auto fitting_species = std::find_if(
+                    species.begin(), species.end(),
+                    [&](const Species &s) {
+                        return Network::get_compatibility_distance(s.representative, network) < speciation_threshold;
+                    }
+            );
+
+            //if no fitting species was found, create new one with this network as its representative
+            if (fitting_species == species.end()) {
+                species.push_back({network});
+                fitting_species = std::prev(species.end(), 1);
             }
-            //a new species is created
-            if (!sorted) {
-                //std::cout << "Trying to add a new species!\n";
-                Species s = {network};
-                s.networks.push_back(network);
-                species.push_back(s);
-            }
+
+            //finally, add the network to the found/created species
+            fitting_species->networks.push_back(network);
         }
 
-        //step 4: remove extinct species
-        species.erase(
-                std::remove_if(species.begin(), species.end(), [](const Species &s) { return s.networks.empty(); }),
-                species.end());
-        //output values now, where fitness is not yet shared & networks and species networks are both filled
-        print();
-        if (generation_number % 10 == 0 && !folderpath.empty()) {
-            save();
-        }
+        //step 2: remove extinct species
+        species.remove_if([](const Species &s) { return s.networks.empty(); });
 
-        //step 5: a random network is chosen as species representative for the next generation
+        //step 3: the best network is chosen as species representative for the next generation
         for (Species &s: species) {
             s.representative = s.networks[0];
         }
 
-        //step 6: fitness sharing
+        //step 4: fitness sharing
         float fitness_total = 0.f;
         for (Species &s: species) {
             s.total_fitness = 0.f;
@@ -173,7 +167,7 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
             }
         }
 
-        //step 7-10
+        //step 5-9
         int elimination_total = int(networks.size()) / 2;
         networks.clear();
 
@@ -183,18 +177,16 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
             //each species receives offspring according to its fitness
             int offspring = int(s.total_fitness / fitness_total * float(elimination_total));
 
-            //step 7: eliminate weakest members (list is already sorted)
-            for (int i = 0; i < elimination && s.networks.size() > 1; i++) {
-                s.networks.pop_back();
-            }
+            //step 5: eliminate weakest members (list is already sorted)
+            s.networks.erase(s.networks.end() - elimination, s.networks.end());
 
-            //step 8: If species is large enough, immediately push an unmodified champion to the main network list without mutating
-            if (s.networks.size() > 5) {
+            //step 6: If species is large enough, immediately push an unmodified champion to the main network list without mutating
+            if (s.networks.size() > 2) {
                 networks.push_back(s.networks[0]);
                 offspring--;
             }
 
-            //step 9: refill with offspring
+            //step 7: refill with offspring
             int parent_size = int(
                     s.networks.size()); //remember the initial size so that offspring dont mate immediately
             for (int i = 0; i < offspring; i++) {
@@ -214,17 +206,17 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
                 }
             }
 
-            //step 10: put the networks back in the global list
+            //step 8: put the networks back in the global list
             for (auto &network: s.networks) {
                 network.mutate();
                 networks.push_back(network);
             }
 
-            //step 11: clear the networks for the next generation
+            //step 9: clear the networks for the next generation
             s.networks.clear();
         }
 
-        //step 12: refill rounding errors with interspecies reproduction
+        //step 10: refill rounding errors with interspecies reproduction
         while (networks.size() < population) {
             int father = GetRandomValue(0, int(networks.size() - 2));
             int mother = GetRandomValue(father + 1, int(networks.size() - 1));
@@ -238,18 +230,35 @@ void NeatInstance::runNeatHelper(const std::function<void()> &evalNetworks) {
         if (generation_number % 10 == 0) {
             std::fill(used_nodes.begin(), used_nodes.end(), false);
             for (Network &n: networks) {
-                for (const auto &[id,c]: n.getConnections()) {
+                for (const auto &[id, c]: n.getConnections()) {
                     used_nodes[c.gene.start] = true;
                     used_nodes[c.gene.end] = true;
                 }
             }
         }
 
-        //TODO: Sometimes the best members of a species get deleted, that should absolutely NOT happen
+        //step 11 & 12 are done at the end, so after the runs the networks list is evaluated & sorted
+
+        //step 11: calculate fitness for every network
+        evalNetworks();
+
+        //step 12: sort by descending fitness -> all later species will be sorted
+        std::sort(
+                networks.begin(), networks.end(),
+                [](Network &n1, Network &n2) {
+                    return n1.getFitness() > n2.getFitness();
+                }
+        );
+
+        //output values
+        print();
+        if (generation_number % 10 == 0 && !folderpath.empty()) {
+            save();
+        }
     }
 }
 
-void NeatInstance::print() {
+void Neat_Instance::print() {
     std::cout << "-------- Generation " << generation_number << " --------\n";
 
     std::cout << "Best Network:           " << networks[0].getFitness() << "\n";
@@ -280,7 +289,7 @@ void NeatInstance::print() {
     std::cout << "\n";
 }
 
-void NeatInstance::save() const {
+void Neat_Instance::save() const {
     //create folder if neccessary
     std::filesystem::create_directories(folderpath);
     string filepath;
@@ -309,36 +318,29 @@ void NeatInstance::save() const {
     savefile << "\n";
     //save networks
     for (const Network &n: networks) {
-        savefile << n.toString() << "\n";
+        savefile << n.to_string() << "\n";
     }
     savefile.close();
 }
 
-vector<Network> NeatInstance::getNetworksSorted() {
-    std::sort(networks.begin(), networks.end(), [](const Network &n1, const Network &n2){return n1.getFitness() > n2.getFitness();});
+vector<Network> Neat_Instance::get_networks_sorted() {
+    std::sort(networks.begin(), networks.end(),
+              [](const Network &n1, const Network &n2) { return n1.getFitness() > n2.getFitness(); });
     return networks;
 }
 
-Connection_Gene NeatInstance::request_connection_gene(node_id start, node_id end, float weight) {
+Connection_Gene Neat_Instance::request_connection_gene(node_id start, node_id end) {
     Connection_Gene ng = {connection_id(connection_genes.size()), start, end};
-    if(!connection_genes.contains(ng)){
+    if (!connection_genes.contains(ng)) {
         connection_genes.insert(ng);
     }
 
     return *connection_genes.find(ng);
 }
 
-vector<string> split(const string &string_to_split, const string &delimiter) {
-    vector<string> res;
-    auto start = 0U;
-    auto end = string_to_split.find(delimiter);
-    while (end != std::string::npos) {
-        res.push_back(string_to_split.substr(start, end - start));
-        start = end + delimiter.length();
-        end = string_to_split.find(delimiter, start);
-    }
-    res.push_back(string_to_split.substr(start, end));
-    //if the string ends with a delimiter, do not include an empty string
-    if (res[res.size() - 1].empty()) res.pop_back();
-    return res;
+Connection_Gene Neat_Instance::request_connection_gene(connection_id id) {
+    return *std::find_if(
+            connection_genes.begin(), connection_genes.end(),
+            [id](const Connection_Gene &cg) { return cg.id == id; }
+    );
 }
