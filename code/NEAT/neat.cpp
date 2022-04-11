@@ -343,7 +343,7 @@ void Neat_Instance::print() {
                 s.networks[0].getConnections().size()
         );
     }
-    printf("+-----+--------+-----+-----+\n");
+    printf("+-----+--------+-----+-----+-----+\n");
 }
 
 void Neat_Instance::save() const {

@@ -7,16 +7,15 @@
 void testXOR(){
 
     Neat_Instance neatInstance = Neat_Instance(3, 1, 150);
-    //Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_50.rn");
-    neatInstance.print();
+    //Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_100.rn");
     neatInstance.generation_target = 100;
     neatInstance.elimination_percentage = 0.2f;
     neatInstance.folderpath = "./XOR";
     neatInstance.run_neat(&testNetworkXOR);
 
-    Network best = neatInstance.get_networks_sorted()[0];
-
     InitWindow(800, 600, "Best Network");
+
+    Network best = neatInstance.get_networks_sorted()[0];
 
     best.print();
 

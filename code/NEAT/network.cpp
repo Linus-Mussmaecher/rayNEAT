@@ -269,22 +269,24 @@ void Network::calculate_node_value(node_id node) {
 }
 
 vector<float> Network::calculate(vector<float> inputs) {
-    //step 1 : set inputs
-    for (int i = 0; i < neat_instance->input_count; i++) {
-        nodes[i].value = i < inputs.size() ? inputs[i] : 0.f;
-    }
 
-    //step 2: propagate values through the network
-    for (auto &[id, node]: nodes) {
-        if (id >= neat_instance->input_count + neat_instance->output_count) {
-            calculate_node_value(id);
+    //step 1: sort nodes by x-position
+    list<Node_Gene> node_order;
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(node_order), [](const auto &pair){return pair.second.gene;});
+    node_order.sort([](const Node_Gene &ng1, const Node_Gene &ng2){return ng1.x  < ng2.x;});
+
+    //step 2: set inputs & propagate values through the network
+    for (auto node: node_order) {
+        if(node.id < neat_instance->input_count){
+            nodes[node.id].value = node.id < inputs.size() ? inputs[node.id] : 0.f;
+        }else{
+            calculate_node_value(node.id);
         }
     }
 
-    //step 3: caluclate value of output nodes (positioned at the start of the network) and add to result vector
+    //step 3: add values of output nodes to result vector
     vector<float> res;
     for (int i = neat_instance->input_count; i < neat_instance->input_count + neat_instance->output_count; i++) {
-        calculate_node_value(i);
         res.push_back(nodes[i].value);
     }
 
@@ -337,16 +339,16 @@ void Network::print() const {
 void Network::draw(Rectangle target) const {
     for (const auto &[id, c]: connections) {
         DrawLine(
-                int(target.x + target.width  * nodes.at(c.gene.start).gene.x),
+                int(target.x + target.width * nodes.at(c.gene.start).gene.x),
                 int(target.y + target.height * nodes.at(c.gene.start).gene.y),
-                int(target.x + target.width  * nodes.at(c.gene.end  ).gene.x),
-                int(target.y + target.height * nodes.at(c.gene.end  ).gene.y),
+                int(target.x + target.width * nodes.at(c.gene.end).gene.x),
+                int(target.y + target.height * nodes.at(c.gene.end).gene.y),
                 c.enabled ? BLACK : GRAY
         );
     }
-    for(const auto &[id, n] : nodes){
+    for (const auto &[id, n]: nodes) {
         DrawCircle(
-                int(target.x + target.width  * n.gene.x),
+                int(target.x + target.width * n.gene.x),
                 int(target.y + target.height * n.gene.y),
                 10.f, BLACK
         );
