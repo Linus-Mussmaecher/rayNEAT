@@ -117,6 +117,7 @@ void Network::mutate_addconnection() {
         auto end_candidates_temp = end_candidates;
         //remove self
         end_candidates_temp.remove(start);
+        end_candidates_temp.remove_if([&](const node_id id){return nodes[id].gene.x < nodes[start].gene.x;});
         //remove all nodes that are already the end of a connection starting at start
         for (auto &[id, c]: connections) {
             if (c.gene.start == start) {

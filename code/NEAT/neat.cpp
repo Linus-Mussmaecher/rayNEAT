@@ -158,7 +158,7 @@ void Neat_Instance::assign_networks_to_species() {
 
     //remove all species but top 2 if there is stagnation in the entire population
     if(last_innovation_generation + population_stagnation_threshold < generation_number){
-        species.sort([](const Species &s1, const Species &s2){return s1.avg_fitness > s2.avg_fitness;});
+        species.sort([](const Species &s1, const Species &s2){return s1.last_innovation_fitness > s2.last_innovation_fitness;});
         while(species.size() > 2){
             species.pop_back();
         }
@@ -170,7 +170,12 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
     //prime the pump by evaluating, sorting and speciating the initial networks
     evalNetworks();
 
-    std::sort(networks.begin(), networks.end(), &sort_by_fitness_desc);
+    std::sort(networks.begin(), networks.end(), [&](const Network &n1, const Network &n2) {
+        return
+                n1.getFitness() * pow(float(n1.getNodes().size()), node_count_exponent)
+                >
+                n2.getFitness() * pow(float(n2.getNodes().size()), node_count_exponent);
+    });
 
     assign_networks_to_species();
 
@@ -268,7 +273,12 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         evalNetworks();
 
         //sort by descending fitness -> all later species will be sorted
-        std::sort(networks.begin(), networks.end(), &sort_by_fitness_desc);
+        std::sort(networks.begin(), networks.end(),[&](const Network &n1, const Network &n2){
+            return
+                    n1.getFitness() * pow(float(n1.getNodes().size()), node_count_exponent)
+                    >
+                    n2.getFitness() * pow(float(n2.getNodes().size()), node_count_exponent);
+        });
 
         //set last_innovation values
         if (networks[0].getFitness() > last_innovation_fitness) {
@@ -396,5 +406,5 @@ vector<Network> Neat_Instance::get_networks_sorted() {
 }
 
 bool Neat_Instance::sort_by_fitness_desc(const Network &n1, const Network &n2) {
-    return n1.getFitness() > n2.getFitness();
+    return n1.getFitness() > n2.getFitness() ;
 }

@@ -276,6 +276,9 @@ public:
     //if the fitness of the entire population does not improve for this many generations, only the top two species may reproduce
     int population_stagnation_threshold = 20;
 
+    //an exponent that manages how strong the amount of nodes in the network is factored into the ordering
+    float node_count_exponent = 0.f;
+
     //weights for calculating network distance
     float c1 = 1.0f;
     float c2 = 1.0f;
@@ -348,7 +351,7 @@ private:
     //May remove extince species or species that haven't innovated in a while
     void assign_networks_to_species();
     //comparison function that, when used with std::sort, sorts the network list by descending fitness
-    static bool sort_by_fitness_desc(const Network &n1, const Network &n2);
+    [[nodiscard]] static bool sort_by_fitness_desc(const Network &n1, const Network &n2) ;
 };
 
 /*   +------------------------------------------------------------+
