@@ -7,16 +7,19 @@
 
 
 Neat_Instance::Neat_Instance(unsigned short input_count, unsigned short output_count, unsigned int population)
-        : input_count(input_count), output_count(output_count), population(population), node_count(0),
+        : input_count(input_count), output_count(output_count), population(population),
           repetitions(5),
           generation_number(0), generation_target(100),
           speciation_threshold(1.f), folderpath() {
 
     //initialization:
     //prepare node list
-    node_count = input_count + output_count;
-    used_nodes.clear();
-    used_nodes.resize(node_count, true);
+    for (int i = 0; i < input_count; i++) {
+        node_genes.push_back({node_id(i), 0.f, float(i + 1) / float(input_count + 1), true});
+    }
+    for (int i = 0; i < output_count; i++) {
+        node_genes.push_back({node_id(i + input_count), float(i + 1) / float(output_count + 1), true});
+    }
     //prepare network list
     networks.reserve(population);
     for (int i = 0; i < population; i++) {
@@ -44,10 +47,7 @@ Neat_Instance::Neat_Instance(const string &file) {
     population = std::stoi(line);
     std::getline(savefile, line);
     speciation_threshold = std::stof(line);
-    std::getline(savefile, line);
-    node_count = std::stoi(line);
-    //node data is not loaded as it is not saved. Instead, we just initialize an used_node vector of sufficient size
-    used_nodes.resize(node_count, true); //pretend all nodes are used
+    //TODO: Load nodes
     //load connection data
     std::getline(savefile, line);
     vector<string> connection_data = split(line, ";");
@@ -232,11 +232,13 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         // (limiting size of innovation list, since old connections can also be reused)
         //none of these old connections can currently be in use, else their start & end points would also be in use
         if (generation_number % 10 == 0) {
-            std::fill(used_nodes.begin(), used_nodes.end(), false);
+            for (Node_Gene &n: node_genes) {
+                n.used = false;
+            }
             for (Network &n: networks) {
                 for (const auto &[id, c]: n.getConnections()) {
-                    used_nodes[c.gene.start] = true;
-                    used_nodes[c.gene.end] = true;
+                    node_genes[c.gene.start].used = true;
+                    node_genes[c.gene.end].used = true;
                 }
             }
         }
@@ -262,7 +264,7 @@ void Neat_Instance::print() {
     std::cout << "-------- Generation " << generation_number << " --------\n";
 
     std::cout << "Best Network:           " << networks[0].getFitness() << "\n";
-    std::cout << "Total Nodes:            " << used_nodes.size() << "\n";
+    std::cout << "Total Nodes:            " << node_genes.size() << "\n";
     std::cout << "Total Connections:      " << connection_genes.size() << "\n";
     std::cout << "Species Count:          " << species.size() << "\n";
     std::cout << "Species Information:\n";
@@ -274,7 +276,7 @@ void Neat_Instance::print() {
                 "| %3llu | %6.1f | %3llu | %3llu |\n",
                 s.networks.size(),
                 s.networks[0].getFitness(),
-                s.networks[0].getNodeValues().size(),
+                s.networks[0].getNodes().size(),
                 s.networks[0].getConnections().size()
         );
     }
@@ -300,10 +302,10 @@ void Neat_Instance::save() const {
             << generation_number << "\n"
             << generation_target << "\n"
             << population << "\n"
-            << speciation_threshold << "\n"
-            << node_count << "\n";
+            << speciation_threshold << "\n";
     //used nodes is not saved -> on eventual run it would be updated soon enough
     //save connection gene data -> this allows networks to only save innovation numbers
+    //TODO: save nodes
     for (const Connection_Gene &cg: connection_genes) {
         savefile << cg.id << "|" << cg.start << "|" << cg.end << ";";
     }
@@ -322,15 +324,22 @@ vector<Network> Neat_Instance::get_networks_sorted() {
 }
 
 Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
-    //for now: just register & return a new node between the old ones
-    Node_Gene ng = {
-            node_id(node_genes.size()),
-            (node_genes[split.start].x + node_genes[split.end].x)/2.f,
-            (node_genes[split.start].y + node_genes[split.end].y)/2.f + rnd_f(0.f, 0.1f),
-            true
-            };
-    node_genes.push_back(ng);
-    return ng;
+    //check if there is an unused node gene
+    auto unused_node = std::find_if(node_genes.begin(), node_genes.end(), [](const Node_Gene &ng) { return !ng.used; });
+    node_id id = 0;
+    //select either an unused node or create a new one
+    if (unused_node == node_genes.end()) {
+        id = node_id(node_genes.size());
+        node_genes.push_back({id, 0.f, 0.f, true});
+    } else {
+        id = unused_node->id;
+    }
+    //set the (new) value for the (new) node_gene
+    node_genes[id].x = (node_genes[split.start].x + node_genes[split.end].x) / 2.f;
+    node_genes[id].y = (node_genes[split.start].y + node_genes[split.end].y) / 2.f + rnd_f(0.f, 0.1f);
+    node_genes[id].used = true;
+    //return the result
+    return node_genes[id];
 }
 
 Node_Gene Neat_Instance::request_node_gene(node_id id) {

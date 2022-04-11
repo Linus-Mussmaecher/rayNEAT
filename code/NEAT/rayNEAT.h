@@ -145,9 +145,6 @@ public:
     //adds a completely new link into the network. Registers this link to the global innovation list
     void mutate_addconnection();
 
-    //adds a completely new node to the network not yet used by any other network
-    node_id add_node(Neat_Instance *neatInstance);
-
     //adds a new connection to the network and if neccessary registers it with the global innovation list
     void add_connection(node_id start, node_id end, float weight);
 
@@ -175,7 +172,7 @@ public:
 
     [[nodiscard]] const map<connection_id, Connection> & getConnections() const;
 
-    [[nodiscard]] const map<node_id, float> &getNodeValues() const;
+    [[nodiscard]] const map<node_id, Node> &getNodes() const;
 
     //print a human-readable description to the standard output
     void print() const;
@@ -193,8 +190,6 @@ private:
     map<connection_id , Connection> connections;
     //map of all nodes in this network, mapping their id to the full struct
     map<node_id, Node> nodes;
-    //values of the nodes in this network. first input_count are reserved for input nodes, next output_count for output nodes, rest is hidden nodes
-    map<node_id, float> node_values;
     //the last calculated fitness value of this network
     float fitness;
     //the neatInstace this network belongs to
@@ -281,9 +276,6 @@ public:
     string folderpath;
 
     // ------------ gene providers for networks ------------
-
-    unsigned int node_count;
-    vector<bool> used_nodes;
 
     //returns a Node_Gene with the requested ID (will fail if the id doesnt exist)
     Node_Gene request_node_gene(node_id id);

@@ -6,10 +6,11 @@
 #include "rayNEAT.h"
 
 Network::Network(Neat_Instance *neatInstance) : neat_instance(neatInstance), fitness(0) {
+    //init input- and output nodes
     for (int i = 0; i < neat_instance->input_count + neat_instance->output_count; i++) {
-        node_values[i] = 0.f;
-
+        nodes[i] = {neat_instance->request_node_gene(node_id(i)), 0.f};
     }
+    //init a random connection for every input
     for (int i = 0; i < neat_instance->input_count; i++) {
         /*for (int j = input_count; j < input_count + output_count; j++) {
             addConnection(neatInstance, i, j, 1.f);
@@ -26,7 +27,8 @@ Network::Network(Neat_Instance *neatInstance, const string &line) : neat_instanc
     //nodes
     vector<string> node_data = split(datapoints[1], ";");
     for (string &nd: node_data) {
-        node_values[std::stoi(nd)] = 0.f;
+        auto id = node_id(std::stoi(nd));
+        nodes[id] = {neat_instance->request_node_gene(id), 0.f};
     }
     //connections
     vector<string> connection_data = split(datapoints[2], ";");
@@ -75,34 +77,21 @@ void Network::mutate_addnode() {
     connection_id split_id = std::next(connections.begin(), split_index)->first;
     Connection split = connections[split_id];
     //get new node id and inform the instance that a new node has been added
-    node_id newNode = add_node(neat_instance);
+    Node_Gene new_node_gene = neat_instance->request_node_gene(split.gene);
+    //add that new node to this network
+    nodes[new_node_gene.id] = {new_node_gene, 0.f};
     //disable the old connection
     connections[split_id].enabled = false;
     //add new connections from old start to new node to old end
-    add_connection(split.gene.start, newNode, split.weight);
-    add_connection(newNode, split.gene.end, 1.f);
-}
-
-node_id Network::add_node(Neat_Instance *neatInstance) {
-    node_id n = 0;
-    while (n < neatInstance->node_count && neatInstance->used_nodes[n]) n++;
-    if (n == neatInstance->node_count) {
-        //a new global node is required
-        neatInstance->node_count++;
-        neatInstance->used_nodes.push_back(true);
-    } else {
-        //an unused node has been found in the global node archive
-        neatInstance->used_nodes[n] = true;
-    }
-    node_values[n] = 0.f;
-    return n;
+    add_connection(split.gene.start, new_node_gene.id, split.weight);
+    add_connection(new_node_gene.id, split.gene.end, 1.f);
 }
 
 
 void Network::mutate_addconnection() {
     //create a list of all used node_ids
     list<node_id> start_candidates;
-    std::transform(node_values.begin(), node_values.end(), std::back_inserter(start_candidates),
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(start_candidates),
                    [](auto &pair) { return pair.first; });
     //a new connection may not start at an output node
     start_candidates.remove_if([&](node_id n) {
@@ -110,7 +99,7 @@ void Network::mutate_addconnection() {
     });
 
     list<node_id> end_candidates;
-    std::transform(node_values.begin(), node_values.end(), std::back_inserter(end_candidates),
+    std::transform(nodes.begin(), nodes.end(), std::back_inserter(end_candidates),
                    [](auto &pair) { return pair.first; });
     //a new connection may not end at an input node
     end_candidates.remove_if([&](node_id n) { return n < neat_instance->input_count; });
@@ -150,16 +139,16 @@ void Network::add_connection(node_id start, node_id end, float weight) {
     //add an enabled connection with that gene and the requested weight to the local map
     connections[cg.id] = {cg, true, weight};
     //make sure the start & end node of this connection are known
-    node_values.try_emplace(start, 0.f);
-    node_values.try_emplace(end, 0.f);
+    nodes.try_emplace(start, Node{neat_instance->request_node_gene(start), 0.f});
+    nodes.try_emplace(end, Node{neat_instance->request_node_gene(end), 0.f});
 }
 
 
 void Network::add_inherited_connection(Connection c) {
     connections[c.gene.id] = c;
     //make sure the nodes are registered
-    node_values.try_emplace(c.gene.start, 0.f);
-    node_values.try_emplace(c.gene.end, 0.f);
+    nodes.try_emplace(c.gene.start, Node{neat_instance->request_node_gene(c.gene.start), 0.f});
+    nodes.try_emplace(c.gene.end, Node{neat_instance->request_node_gene(c.gene.end), 0.f});
 }
 
 Network Network::reproduce(Network mother, Network father) {
@@ -271,21 +260,21 @@ void Network::calculate_node_value(node_id node) {
     int i = 0;
     for (const auto &[id, c]: connections) {
         if (c.gene.end == node && c.enabled) {
-            weight_sum += node_values[c.gene.start] * c.weight;
+            weight_sum += nodes[c.gene.start].value * c.weight;
             i++;
         }
     }
-    node_values[node] = neat_instance->activation_function(weight_sum);
+    nodes[node].value = neat_instance->activation_function(weight_sum);
 }
 
 vector<float> Network::calculate(vector<float> inputs){
     //step 1 : set inputs
     for (int i = 0; i < neat_instance->input_count; i++) {
-        node_values[i] = i < inputs.size()  ? inputs[i] : 0.f;
+        nodes[i].value = i < inputs.size()  ? inputs[i] : 0.f;
     }
 
     //step 2: propagate values through the network
-    for (auto &[id, value]: node_values) {
+    for (auto &[id, node]: nodes) {
         if (id >= neat_instance->input_count + neat_instance->output_count) {
             calculate_node_value(id);
         }
@@ -295,7 +284,7 @@ vector<float> Network::calculate(vector<float> inputs){
     vector<float> res;
     for (int i = neat_instance->input_count; i < neat_instance->input_count + neat_instance->output_count; i++) {
         calculate_node_value(i);
-        res.push_back(node_values[i]);
+        res.push_back(nodes[i].value);
     }
 
     return res;
@@ -313,15 +302,15 @@ const map<connection_id, Connection> & Network::getConnections() const {
     return connections;
 }
 
-const map<node_id, float> &Network::getNodeValues() const {
-    return node_values;
+const map<node_id, Node> &Network::getNodes() const {
+    return nodes;
 }
 
 string Network::to_string() const {
     std::ostringstream res;
     res << fitness;
     res << "||";
-    for (auto &[id, value]: node_values) {
+    for (auto &[id, node]: nodes) {
         res << id << ";";
     }
     res << "||";
@@ -333,7 +322,7 @@ string Network::to_string() const {
 
 void Network::print() const {
     std::cout << "Nodes: ";
-    for (auto &[id, value]: node_values) {
+    for (auto &[id, node]: nodes) {
         std::cout << id << "  ";
     }
     std::cout << "\nConnections:\n";
