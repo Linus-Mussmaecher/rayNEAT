@@ -9,14 +9,22 @@ void testXOR(){
     //Neat_Instance neatInstance = Neat_Instance(3, 1, 100);
     Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_50.rn");
     neatInstance.print();
-    neatInstance.generation_target = 100;
+    neatInstance.generation_target = 50;
     neatInstance.elimination_percentage = 0.2f;
     neatInstance.folderpath = "./XOR";
-    //neatInstance.run_neat(&testNetworkXOR);
+    neatInstance.run_neat(&testNetworkXOR);
 
     Network best = neatInstance.get_networks_sorted()[0];
 
     best.print();
+
+    InitWindow(800, 600, "Best Network");
+    while(!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(WHITE);
+        best.draw({20,20,740,540});
+        EndDrawing();
+    }
 
     std::cout << "Score: " << best.getFitness() << "\n";
 

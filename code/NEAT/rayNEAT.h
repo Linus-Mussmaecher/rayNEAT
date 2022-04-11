@@ -178,7 +178,7 @@ public:
     void print() const;
 
     //draw a rendering of the network to the raylib. Must already be in drawing mode.
-    void draw() const;
+    void draw(Rectangle target) const;
 
     //return a somewhat human-readable and very machine readable string that describes this networks nodes & connections. connections only print their innovation!
     [[nodiscard]] string to_string() const;

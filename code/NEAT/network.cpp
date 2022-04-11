@@ -37,10 +37,10 @@ Network::Network(Neat_Instance *neatInstance, const string &line) : neat_instanc
         //search gene with fitting id and add it
         connection_id id = std::stoi(connection_datapoints[0]);
         connections[id] = {
-                                      neat_instance->request_connection_gene(id),
-                                      std::stoi(connection_datapoints[1]) != 0,
-                                      std::stof(connection_datapoints[2])
-                              };
+                neat_instance->request_connection_gene(id),
+                std::stoi(connection_datapoints[1]) != 0,
+                std::stof(connection_datapoints[2])
+        };
     }
 }
 
@@ -59,10 +59,11 @@ void Network::mutate() {
 
 
 void Network::mutate_weights() {
-    for (auto &[id, c] : connections) {
+    for (auto &[id, c]: connections) {
         if (rnd_f(0.f, 1.f) < neat_instance->probability_mutate_weight_pertube) {
             //slightly pertube weight
-            c.weight = std::clamp(c.weight + rnd_f(- neat_instance->mutate_weight_pertube_strength, neat_instance->mutate_weight_pertube_strength), -2.f, 2.f);
+            c.weight = std::clamp(c.weight + rnd_f(-neat_instance->mutate_weight_pertube_strength,
+                                                   neat_instance->mutate_weight_pertube_strength), -2.f, 2.f);
         } else {
             //completely randomize weight
             c.weight = rnd_f(-2.f, 2.f);
@@ -191,7 +192,7 @@ Network Network::reproduce(Network mother, Network father) {
 
         } else if (m_it == m_end ||
                    (f_it != f_end &&
-                    m_it-> first > f_it->first)) {
+                    m_it->first > f_it->first)) {
 
             //excess genes in father OR disjoint genes in father are taken if father fitness >= mother fitness
             if (mother.fitness <= father.fitness) {
@@ -238,7 +239,7 @@ float Network::get_compatibility_distance(Network a, Network b) {
             //disjoint gene of a
             D++;
             a_it++;
-        } else if (a_it == a_end ) {
+        } else if (a_it == a_end) {
             //excess gene of b
             E++;
             b_it++;
@@ -249,8 +250,8 @@ float Network::get_compatibility_distance(Network a, Network b) {
         }
     }
 
-    if(N == 0) N = 1;
-    if(M == 0) M = 1;
+    if (N == 0) N = 1;
+    if (M == 0) M = 1;
     return a.neat_instance->c1 * E / N + a.neat_instance->c2 * D / N + a.neat_instance->c3 * W / M;
 }
 
@@ -267,10 +268,10 @@ void Network::calculate_node_value(node_id node) {
     nodes[node].value = neat_instance->activation_function(weight_sum);
 }
 
-vector<float> Network::calculate(vector<float> inputs){
+vector<float> Network::calculate(vector<float> inputs) {
     //step 1 : set inputs
     for (int i = 0; i < neat_instance->input_count; i++) {
-        nodes[i].value = i < inputs.size()  ? inputs[i] : 0.f;
+        nodes[i].value = i < inputs.size() ? inputs[i] : 0.f;
     }
 
     //step 2: propagate values through the network
@@ -298,7 +299,7 @@ void Network::setFitness(float fitness_s) {
     Network::fitness = fitness_s;
 }
 
-const map<connection_id, Connection> & Network::getConnections() const {
+const map<connection_id, Connection> &Network::getConnections() const {
     return connections;
 }
 
@@ -314,7 +315,7 @@ string Network::to_string() const {
         res << id << ";";
     }
     res << "||";
-    for (const auto &[id,c]: connections) {
+    for (const auto &[id, c]: connections) {
         res << c.gene.id << "|" << c.enabled << "|" << c.weight << ";";
     }
     return res.str();
@@ -333,6 +334,21 @@ void Network::print() const {
     }
 }
 
-void Network::draw() const{
-
+void Network::draw(Rectangle target) const {
+    for (const auto &[id, c]: connections) {
+        DrawLine(
+                int(target.x + target.width  * nodes.at(c.gene.start).gene.x),
+                int(target.y + target.height * nodes.at(c.gene.start).gene.y),
+                int(target.x + target.width  * nodes.at(c.gene.end  ).gene.x),
+                int(target.y + target.height * nodes.at(c.gene.end  ).gene.y),
+                c.enabled ? BLACK : GRAY
+        );
+    }
+    for(const auto &[id, n] : nodes){
+        DrawCircle(
+                int(target.x + target.width  * n.gene.x),
+                int(target.y + target.height * n.gene.y),
+                10.f, BLACK
+        );
+    }
 }
