@@ -248,9 +248,9 @@ public:
     unsigned int population;
 
     //how often every single network is evaluated to calculate its fitness each round
-    unsigned int repetitions;
+    unsigned int repetitions = 5;
     //how many generations should be simulated
-    unsigned int generation_target;
+    unsigned int generation_target = 100;
 
     //probabilities for different mutation types
     float probability_mutate_link = 0.05f;
@@ -267,7 +267,7 @@ public:
     float c2 = 1.0f;
     float c3 = 0.4f;
     //distance threshhold for when two networks are considered to be of the same species
-    float speciation_threshold;
+    float speciation_threshold = 3.0;
 
     //activation function for calculation network outputs
     float (*activation_function)(float) = &sigmoid;

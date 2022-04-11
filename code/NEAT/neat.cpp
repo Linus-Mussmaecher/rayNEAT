@@ -8,9 +8,8 @@
 
 Neat_Instance::Neat_Instance(unsigned short input_count, unsigned short output_count, unsigned int population)
         : input_count(input_count), output_count(output_count), population(population),
-          repetitions(5),
-          generation_number(0), generation_target(100),
-          speciation_threshold(1.f), folderpath() {
+          generation_number(0),
+          folderpath() {
 
     //initialization:
     //prepare node list
