@@ -18,7 +18,7 @@ Neat_Instance::Neat_Instance(unsigned short input_count, unsigned short output_c
         node_genes.push_back({node_id(i), 0.f, float(i + 1) / float(input_count + 1), true});
     }
     for (int i = 0; i < output_count; i++) {
-        node_genes.push_back({node_id(i + input_count), float(i + 1) / float(output_count + 1), true});
+        node_genes.push_back({node_id(i + input_count),1.f, float(i + 1) / float(output_count + 1), true});
     }
     //prepare network list
     networks.reserve(population);
@@ -47,7 +47,19 @@ Neat_Instance::Neat_Instance(const string &file) {
     population = std::stoi(line);
     std::getline(savefile, line);
     speciation_threshold = std::stof(line);
-    //TODO: Load nodes
+    //load node data
+    std::getline(savefile, line);
+    vector<string> node_data = split(line, ";");
+    for (string &nd: node_data) {
+        vector<string> datapoints = split(nd, "|");
+        node_genes.push_back(
+                {
+                        static_cast<node_id>(std::stoi(datapoints[0])),
+                        std::stof(datapoints[1]),
+                        std::stof(datapoints[2]),
+                        true
+                });
+    }
     //load connection data
     std::getline(savefile, line);
     vector<string> connection_data = split(line, ";");
@@ -305,7 +317,10 @@ void Neat_Instance::save() const {
             << speciation_threshold << "\n";
     //used nodes is not saved -> on eventual run it would be updated soon enough
     //save connection gene data -> this allows networks to only save innovation numbers
-    //TODO: save nodes
+    for (const Node_Gene &ng: node_genes) {
+        savefile << ng.id << "|" << ng.x << "|" << ng.y << ";";
+    }
+    savefile << "\n";
     for (const Connection_Gene &cg: connection_genes) {
         savefile << cg.id << "|" << cg.start << "|" << cg.end << ";";
     }
@@ -326,7 +341,7 @@ vector<Network> Neat_Instance::get_networks_sorted() {
 Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
     //check if there is an unused node gene
     auto unused_node = std::find_if(node_genes.begin(), node_genes.end(), [](const Node_Gene &ng) { return !ng.used; });
-    node_id id = 0;
+    node_id id;
     //select either an unused node or create a new one
     if (unused_node == node_genes.end()) {
         id = node_id(node_genes.size());
@@ -352,7 +367,6 @@ Connection_Gene Neat_Instance::request_connection_gene(node_id start, node_id en
     if (!connection_genes.contains(ng)) {
         connection_genes.insert(ng);
     }
-
     return *connection_genes.find(ng);
 }
 

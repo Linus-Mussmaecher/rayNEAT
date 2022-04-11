@@ -5,7 +5,7 @@
 #include "scenarios/XOR/XOR.h"
 
 int main() {
-    SetRandomSeed(clock());
+    SetRandomSeed(time(nullptr));
 
     testXOR();
 }
