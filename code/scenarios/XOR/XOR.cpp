@@ -9,8 +9,8 @@ void testXOR(){
     //Neat_Instance neatInstance = Neat_Instance(3, 1, 100);
     Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_50.rn");
     neatInstance.print();
-    neatInstance.generation_target = 50;
-    neatInstance.elimination_percentage = 0.2f;
+    neatInstance.generation_target = 150;
+    neatInstance.elimination_percentage = 0.3f;
     neatInstance.folderpath = "./XOR";
     neatInstance.run_neat(&testNetworkXOR);
 

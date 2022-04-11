@@ -43,7 +43,7 @@ This process may be repeated multiple times until the scenario has ended.
 (Example: A network trying to guess written letters will only need one calculation per evaluation, while a network playing snake will need to calculate every timestep of the game and then be evaluated after the game has finished).
 After the instance of the scenario has finished, rewards your network(s) with fitness based on their performance. Try not to make the rewards to binary (Reward point differences in competition as opposed to win/loss; reward small amounts of points for time survived in snake, etc.) so the algorithm can judge its progress even when not crossing the binary threshold.
 
-When using the default sigmoid activation function, input values should be scaled to be in [0,1] and output values will always be in [0,1].
+When using the default sigmoid activation function, input values should be scaled to be in [-1,1] and output values will always be in [0,1].
 
 ### Saving and loading
 

@@ -11,7 +11,7 @@ float sigmoid(float x) {
     return 1.f / (1.f + expf(-4.9f * x));
 }
 
-float relu(float x){
+[[maybe_unused]] float relu(float x){
     return std::max(0.f, x);
 }
 

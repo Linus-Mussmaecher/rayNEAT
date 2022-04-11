@@ -196,10 +196,20 @@ private:
     Neat_Instance *neat_instance;
 };
 
+/*   +------------------------------------------------------------+
+ *   |                                                            |
+ *   |                          Species                           |
+ *   |                                                            |
+ *   +------------------------------------------------------------+
+ */
+
 struct Species {
     Network representative;
     float total_fitness = 0.f;
     vector<Network> networks;
+
+    float last_innovation_fitness;
+    int last_innovation_generation;
 };
 
 /*   +------------------------------------------------------------+
@@ -210,15 +220,15 @@ struct Species {
  */
 
 //a modified sigmoid function
-float sigmoid(float x);
+[[maybe_unused]] float sigmoid(float x);
 
-float relu(float x);
+[[maybe_unused]] float relu(float x);
 
-float heavyside(float x);
+[[maybe_unused]] float heavyside(float x);
 
-float softplus(float x);
+[[maybe_unused]] float softplus(float x);
 
-float gaussian(float x);
+[[maybe_unused]] float gaussian(float x);
 
 /*   +------------------------------------------------------------+
  *   |                                                            |
@@ -261,6 +271,10 @@ public:
 
     //percentage of networks killed off each round
     float elimination_percentage = 0.5f;
+    //if the fitness of a species does not improve for this many generations, it is not allowed to reproduce
+    int species_stagnation_threshold = 15;
+    //if the fitness of the entire population does not improve for this many generations, only the top two species may reproduce
+    int population_stagnation_threshold = 20;
 
     //weights for calculating network distance
     float c1 = 1.0f;
@@ -326,7 +340,8 @@ private:
     //should only be called by the public runNeat functions
     void run_neat_helper(const std::function<void()> &evalNetworks);
 
-    //assinges each network in the networks list to a species in the species list. May create new species to accomodate all networks. May remove extince species.
+    //assinges each network in the networks list to a species in the species list. May create new species to accomodate all networks.
+    //May remove extince species or species that haven't innovated in a while
     void assign_networks_to_species();
 
     static bool sort_by_fitness_desc(const Network &n1, const Network &n2);

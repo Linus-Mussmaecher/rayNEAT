@@ -144,6 +144,8 @@ void Neat_Instance::assign_networks_to_species() {
 
     //remove extinct species
     species.remove_if([](const Species &s) { return s.networks.empty(); });
+
+    //TODO: Remove species that haven't innovated in x generations
 }
 
 void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
@@ -190,6 +192,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
             int elimination = int(float(s.networks.size()) * elimination_percentage);
             //each species receives offspring according to its fitness
             int offspring = int(s.total_fitness / fitness_total * float(elimination_total));
+            //TODO: Stanley p.13 mentions: "The entire population is then replaced by the offspring of the remaining organisms in each species"
 
             //eliminate weakest members (list is already sorted)
             s.networks.erase(s.networks.end() - elimination, s.networks.end());
@@ -227,6 +230,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
             }
         }
 
+        //TODO: Stanley p.13: In rare cases when the fitness of the entire population does not improve for more than 20 generations only the top two species are allowed to reproduce, refocusing the search into the most promising spaces
 
         //refill rounding errors with interspecies reproduction
         while (networks.size() < population) {
@@ -338,6 +342,7 @@ vector<Network> Neat_Instance::get_networks_sorted() {
 }
 
 Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
+    //TODO: Return nodes already used by other networks
     //check if there is an unused node gene
     auto unused_node = std::find_if(node_genes.begin(), node_genes.end(), [](const Node_Gene &ng) { return !ng.used; });
     node_id id;
