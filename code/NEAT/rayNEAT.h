@@ -205,7 +205,7 @@ private:
 
 struct Species {
     Network representative;
-    float total_fitness = 0.f;
+    float avg_fitness = 0.f;
     vector<Network> networks;
 
     float last_innovation_fitness = 0.f;

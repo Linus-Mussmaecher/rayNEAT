@@ -113,8 +113,11 @@ void Network::mutate_addconnection() {
     while (!found && !start_candidates.empty()) {
         //randomly select a start node from the remaining candidates
         start = *std::next(start_candidates.begin(), GetRandomValue(0, int(start_candidates.size() - 1)));
-        //create a copy of the end_candidates list. From that one, remove all nodes that are already the end of a connection starting at start
+        //create a copy of the end_candidates list.
         auto end_candidates_temp = end_candidates;
+        //remove self
+        end_candidates_temp.remove(start);
+        //remove all nodes that are already the end of a connection starting at start
         for (auto &[id, c]: connections) {
             if (c.gene.start == start) {
                 end_candidates_temp.remove(c.gene.end);

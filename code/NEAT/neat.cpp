@@ -155,6 +155,14 @@ void Neat_Instance::assign_networks_to_species() {
                (s.last_innovation_generation + species_stagnation_threshold < generation_number
                 && s.last_innovation_fitness != last_innovation_fitness);
     });
+
+    //remove all species but top 2 if there is stagnation in the entire population
+    if(last_innovation_generation + population_stagnation_threshold < generation_number){
+        species.sort([](const Species &s1, const Species &s2){return s1.avg_fitness > s2.avg_fitness;});
+        while(species.size() > 2){
+            species.pop_back();
+        }
+    }
 }
 
 void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
@@ -178,10 +186,10 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         //fitness sharing to assign each species an evolutionary value
         float fitness_total = 0.f;
         for (Species &s: species) {
-            s.total_fitness = 0.f;
+            s.avg_fitness = 0.f;
             for (Network &n: s.networks) {
                 fitness_total += n.getFitness() / float(s.networks.size());
-                s.total_fitness += n.getFitness() / float(s.networks.size());
+                s.avg_fitness += n.getFitness() / float(s.networks.size());
             }
         }
 
@@ -200,7 +208,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
             //each species eliminates the required amount of members. The integer cast ensures at least 1 member will remain
             int elimination = int(float(s.networks.size()) * elimination_percentage);
             //each species receives offspring according to its fitness
-            int offspring = int(s.total_fitness / fitness_total * float(elimination_total));
+            int offspring = int(s.avg_fitness / fitness_total * float(elimination_total));
 
             //eliminate weakest members (list is already sorted)
             s.networks.erase(s.networks.end() - elimination, s.networks.end());
@@ -229,8 +237,6 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
                 }
             }
         }
-
-        //TODO: Stanley p.13: In rare cases when the fitness of the entire population does not improve for more than 20 generations only the top two species are allowed to reproduce, refocusing the search into the most promising spaces
 
         //refill rounding errors with interspecies reproduction
         while (networks.size() < population) {
