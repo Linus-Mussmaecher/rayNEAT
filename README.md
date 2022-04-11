@@ -8,7 +8,7 @@ A C++ project containing an implementation of the NEAT-algorithm. Uses raylib fo
 
 ## How to set up your own scenario
 
-###Setup
+### Setup
 
 This NEAT implementation can be used to learn & perform on your own scenarios.
 
@@ -32,7 +32,7 @@ Changing some of these values can improve the performance of the algorithm on yo
 
 While population, input- and output count may be changed by accessing their fields as well, this is not recommended and may yield unexpected results.
 
-###Execution
+### Execution
 
 After the NEAT instance has been created, it can perform the NEAT evolution by calling either of the runNEAT functions.
 You may either pass a simple evaluation function that takes in a Network and returns a fitness value to assign to that network or pass a competitive evolution function that takes in two networks and returns a pair of fitness values for the competitors (Values from all network pairings will be averaged to get the final fitness of the network).
@@ -45,7 +45,7 @@ After the instance of the scenario has finished, rewards your network(s) with fi
 
 When using the default sigmoid activation function, input values should be scaled to be in [0,1] and output values will always be in [0,1].
 
-###Saving and loading
+### Saving and loading
 
 While running, the algorithm will save every 10th generation to a .rn file in the folder provided by the field "folderpath" (if it has been set).
 Evolution may be picked up at a later point by using the provided constructor taking in a file. It will load the node, connection and network data from the file and assign new species.
