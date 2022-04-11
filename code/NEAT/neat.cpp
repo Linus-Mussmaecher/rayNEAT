@@ -226,7 +226,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
 
             //refill with offspring
             for (int i = 0; i < s.networks.size() + offspring; i++) {
-                if (rnd_f(0.f, 1.f) < 0.25 || s.networks.size() == 1) {
+                if (rnd_f(0.f, 1.f) > offspring_mating_percentage || s.networks.size() == 1) {
                     //mutation without crossover
                     Network n = s.networks[GetRandomValue(0, int(s.networks.size()) - 1)];
                     n.mutate();
@@ -238,6 +238,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
                     //pick a random mother with higher index from the non-new networks
                     int mother = GetRandomValue(father + 1, int(s.networks.size()) - 1);
                     Network n = Network::reproduce(s.networks[mother], s.networks[father]);
+                    n.mutate();
                     networks.push_back(n);
                 }
             }
@@ -290,7 +291,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         assign_networks_to_species();
 
         //save values
-        if (generation_number % 10 == 0 && !folderpath.empty()) {
+        if (generation_number % save_intervall == 0 && !folderpath.empty()) {
             save();
         }
         print();
