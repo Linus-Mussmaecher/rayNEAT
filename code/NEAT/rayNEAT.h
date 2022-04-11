@@ -208,8 +208,8 @@ struct Species {
     float total_fitness = 0.f;
     vector<Network> networks;
 
-    float last_innovation_fitness;
-    int last_innovation_generation;
+    float last_innovation_fitness = 0.f;
+    unsigned int last_innovation_generation = 0;
 };
 
 /*   +------------------------------------------------------------+
@@ -281,7 +281,7 @@ public:
     float c2 = 1.0f;
     float c3 = 0.4f;
     //distance threshhold for when two networks are considered to be of the same species
-    float speciation_threshold = 3.0;
+    float speciation_threshold = 1.0;
 
     //activation function for calculation network outputs
     float (*activation_function)(float) = &sigmoid;
@@ -334,6 +334,10 @@ private:
     unordered_set<Connection_Gene> connection_genes;
     //the current number of simulated generations
     unsigned int generation_number;
+    //current best fitness
+    float last_innovation_fitness = 0.f;
+    //generation this best fitness first appeared
+    unsigned int last_innovation_generation = 0;
 
     //performs the NEAT-algorithm on the network list.
     //the passed function must set the fitness values of all the networks in the list.

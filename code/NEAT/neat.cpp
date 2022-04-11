@@ -17,7 +17,7 @@ Neat_Instance::Neat_Instance(unsigned short input_count, unsigned short output_c
         node_genes.push_back({node_id(i), 0.f, float(i + 1) / float(input_count + 1), true});
     }
     for (int i = 0; i < output_count; i++) {
-        node_genes.push_back({node_id(i + input_count),1.f, float(i + 1) / float(output_count + 1), true});
+        node_genes.push_back({node_id(i + input_count), 1.f, float(i + 1) / float(output_count + 1), true});
     }
     //prepare network list
     networks.reserve(population);
@@ -141,11 +141,20 @@ void Neat_Instance::assign_networks_to_species() {
         fitting_species->networks.push_back(network);
     }
 
+    //set last_innovation values
+    for (Species &s: species) {
+        if (!s.networks.empty() && s.networks[0].getFitness() > s.last_innovation_fitness) {
+            s.last_innovation_fitness = s.networks[0].getFitness();
+            s.last_innovation_generation = generation_number;
+        }
+    }
 
-    //remove extinct species
-    species.remove_if([](const Species &s) { return s.networks.empty(); });
-
-    //TODO: Remove species that haven't innovated in x generations
+    //remove extinct species or species that haven't innovated in a while (but never the top species)
+    species.remove_if([&](const Species &s) {
+        return s.networks.empty() ||
+               (s.last_innovation_generation + species_stagnation_threshold < generation_number
+                && s.last_innovation_fitness != last_innovation_fitness);
+    });
 }
 
 void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
@@ -188,11 +197,10 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         networks.clear();
 
         for (Species &s: species) {
-            //each species eliminates half of its members (-> atleast 1 member remaining)
+            //each species eliminates the required amount of members. The integer cast ensures at least 1 member will remain
             int elimination = int(float(s.networks.size()) * elimination_percentage);
             //each species receives offspring according to its fitness
             int offspring = int(s.total_fitness / fitness_total * float(elimination_total));
-            //TODO: Stanley p.13 mentions: "The entire population is then replaced by the offspring of the remaining organisms in each species"
 
             //eliminate weakest members (list is already sorted)
             s.networks.erase(s.networks.end() - elimination, s.networks.end());
@@ -204,29 +212,21 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
             }
 
             //refill with offspring
-            int parent_size = int(
-                    s.networks.size()); //remember the initial size so that offspring dont mate immediately
-            for (int i = 0; i < offspring; i++) {
-                if (GetRandomValue(0, 3) == 0 || parent_size == 1) {
+            for (int i = 0; i < s.networks.size() + offspring; i++) {
+                if (rnd_f(0.f, 1.f) < 0.25 || s.networks.size() == 1) {
                     //mutation without crossover
-                    Network n = s.networks[GetRandomValue(0, parent_size - 1)];
+                    Network n = s.networks[GetRandomValue(0, int(s.networks.size()) - 1)];
                     n.mutate();
-                    s.networks.push_back(n);
+                    networks.push_back(n);
                 } else {
                     //crossover
                     //pick a random father from the non-new networks (not the last one)
-                    int father = GetRandomValue(0, parent_size - 2);
+                    int father = GetRandomValue(0, int(s.networks.size()) - 2);
                     //pick a random mother with higher index from the non-new networks
-                    int mother = GetRandomValue(father + 1, parent_size - 1);
+                    int mother = GetRandomValue(father + 1, int(s.networks.size()) - 1);
                     Network n = Network::reproduce(s.networks[mother], s.networks[father]);
-                    s.networks.push_back(n);
+                    networks.push_back(n);
                 }
-            }
-
-            //put the networks back in the global list
-            for (auto &network: s.networks) {
-                network.mutate();
-                networks.push_back(network);
             }
         }
 
@@ -264,6 +264,12 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         //sort by descending fitness -> all later species will be sorted
         std::sort(networks.begin(), networks.end(), &sort_by_fitness_desc);
 
+        //set last_innovation values
+        if (networks[0].getFitness() > last_innovation_fitness) {
+            last_innovation_fitness = networks[0].getFitness();
+            last_innovation_generation = generation_number;
+        }
+
         //speciate networks
         assign_networks_to_species();
 
@@ -275,22 +281,64 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
     }
 }
 
+Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
+    //TODO: Return nodes already used by other networks
+    //check if there is an unused node gene
+    auto unused_node = std::find_if(node_genes.begin(), node_genes.end(), [](const Node_Gene &ng) { return !ng.used; });
+    node_id id;
+    //select either an unused node or create a new one
+    if (unused_node == node_genes.end()) {
+        id = node_id(node_genes.size());
+        node_genes.push_back({id, 0.f, 0.f, true});
+    } else {
+        id = unused_node->id;
+    }
+    //set the (new) value for the (new) node_gene
+    node_genes[id].x = (node_genes[split.start].x + node_genes[split.end].x) / 2.f;
+    node_genes[id].y = (node_genes[split.start].y + node_genes[split.end].y) / 2.f + rnd_f(0.f, 0.1f);
+    node_genes[id].used = true;
+    //return the result
+    return node_genes[id];
+}
+
+Node_Gene Neat_Instance::request_node_gene(node_id id) {
+    return node_genes[id];
+}
+
+
+Connection_Gene Neat_Instance::request_connection_gene(node_id start, node_id end) {
+    Connection_Gene ng = {connection_id(connection_genes.size()), start, end};
+    if (!connection_genes.contains(ng)) {
+        connection_genes.insert(ng);
+    }
+    return *connection_genes.find(ng);
+}
+
+Connection_Gene Neat_Instance::request_connection_gene(connection_id id) {
+    return *std::find_if(
+            connection_genes.begin(), connection_genes.end(),
+            [id](const Connection_Gene &cg) { return cg.id == id; }
+    );
+}
+
 void Neat_Instance::print() {
     std::cout << "-------- Generation " << generation_number << " --------\n";
 
-    std::cout << "Best Network:           " << networks[0].getFitness() << "\n";
+    std::cout << "Best Network:           " << last_innovation_fitness << "\n";
+    std::cout << "Best Network Gen:       " << last_innovation_generation << "\n";
     std::cout << "Total Nodes:            " << node_genes.size() << "\n";
     std::cout << "Total Connections:      " << connection_genes.size() << "\n";
     std::cout << "Species Count:          " << species.size() << "\n";
     std::cout << "Species Information:\n";
-    printf("+-----+--------+-----+-----+\n");
-    printf("| Pop |  Best  | BNC | BCC |\n");
-    printf("+-----+--------+-----+-----+\n");
+    printf("+-----+--------+-----+-----+-----+\n");
+    printf("| Pop |  Best  | Gen | BNC | BCC |\n");
+    printf("+-----+--------+-----+-----+-----+\n");
     for (Species &s: species) {
         printf(
-                "| %3llu | %6.1f | %3llu | %3llu |\n",
+                "| %3llu | %6.1f | %3d | %3llu | %3llu |\n",
                 s.networks.size(),
                 s.networks[0].getFitness(),
+                s.last_innovation_generation,
                 s.networks[0].getNodes().size(),
                 s.networks[0].getConnections().size()
         );
@@ -339,46 +387,6 @@ vector<Network> Neat_Instance::get_networks_sorted() {
     std::sort(networks.begin(), networks.end(),
               [](const Network &n1, const Network &n2) { return n1.getFitness() > n2.getFitness(); });
     return networks;
-}
-
-Node_Gene Neat_Instance::request_node_gene(Connection_Gene split) {
-    //TODO: Return nodes already used by other networks
-    //check if there is an unused node gene
-    auto unused_node = std::find_if(node_genes.begin(), node_genes.end(), [](const Node_Gene &ng) { return !ng.used; });
-    node_id id;
-    //select either an unused node or create a new one
-    if (unused_node == node_genes.end()) {
-        id = node_id(node_genes.size());
-        node_genes.push_back({id, 0.f, 0.f, true});
-    } else {
-        id = unused_node->id;
-    }
-    //set the (new) value for the (new) node_gene
-    node_genes[id].x = (node_genes[split.start].x + node_genes[split.end].x) / 2.f;
-    node_genes[id].y = (node_genes[split.start].y + node_genes[split.end].y) / 2.f + rnd_f(0.f, 0.1f);
-    node_genes[id].used = true;
-    //return the result
-    return node_genes[id];
-}
-
-Node_Gene Neat_Instance::request_node_gene(node_id id) {
-    return node_genes[id];
-}
-
-
-Connection_Gene Neat_Instance::request_connection_gene(node_id start, node_id end) {
-    Connection_Gene ng = {connection_id(connection_genes.size()), start, end};
-    if (!connection_genes.contains(ng)) {
-        connection_genes.insert(ng);
-    }
-    return *connection_genes.find(ng);
-}
-
-Connection_Gene Neat_Instance::request_connection_gene(connection_id id) {
-    return *std::find_if(
-            connection_genes.begin(), connection_genes.end(),
-            [id](const Connection_Gene &cg) { return cg.id == id; }
-    );
 }
 
 bool Neat_Instance::sort_by_fitness_desc(const Network &n1, const Network &n2) {
