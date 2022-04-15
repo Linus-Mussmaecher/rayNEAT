@@ -6,6 +6,29 @@
 
 #include <utility>
 
+
+void testSnake(){
+
+    clock_t time;
+
+    for(int i = 0; i < 20; i++){
+        time = clock();
+
+        Neat_Instance neat = Neat_Instance(6, 4, 250);
+        neat.generation_target = 250;
+        neat.node_count_exponent = 0.1;
+        if(i >= 15) neat.activation_function = &tanhf;
+        neat.folderpath = "./snake_" + std::to_string(i);
+        neat.run_neat(&test_network_snake);
+
+        std::cout << "\n\n Finished first run in " << float(clock() - time)/CLOCKS_PER_SEC << "s.\n\n";
+
+    }
+
+
+}
+
+
 pos operator+(pos a, pos b) {
     return {a.x + b.x, a.y + b.y};
 }
@@ -22,7 +45,7 @@ bool operator==(pos a, pos b) {
 
 int runSnake(Snake_Agent *agent, int w, int h) {
     //Init
-    Snake_State state = {w, h, 0, {GetRandomValue(0, w - 1), GetRandomValue(0, h - 1)}, {}};
+    Snake_State state = {w, h, 0, {5,5}, { {1,1}, {2,1} }};
     bool fail = false;
     int stagnation_counter = 0;
 
@@ -44,6 +67,8 @@ int runSnake(Snake_Agent *agent, int w, int h) {
         if (std::find(state.snake.begin(), state.snake.end(), next) != state.snake.end()) {
             fail = true;
         }
+
+        state.snake.push_front(next);
     }
 
     return state.score;
@@ -70,11 +95,15 @@ pos User_Snake_Agent::getNextDirection(const Snake_State &state) {
 AI_Snake_Agent::AI_Snake_Agent(Network client) : client(std::move(client)) {}
 
 pos AI_Snake_Agent::getNextDirection(const Snake_State &state) {
+    pos dir = state.snake.front() - *std::next(state.snake.begin(), 1);
+    pos to_food = state.food - state.snake.front();
+
     vector<float> res = client.calculate(
             {
-                    //TODO: all parameters
-                    float(getDistance(state.snake.front(), {0, 1},
-                                      [&state](const pos &p) { return p == state.food; }, 31)),
+                    is_obstacle(state, state.snake.front() + dir) ? 1.f : 0.f, //obstacle in front
+                    is_obstacle(state, state.snake.front() + pos{dir.y, -dir.x}) ? 1.f : 0.f, //obstacle to the left
+                    is_obstacle(state, state.snake.front() + pos{-dir.y, dir.x}) ? 1.f : 0.f, //obstacle to the right
+                    atan2( float(dir.x*to_food.y - dir.y*to_food.x), float(dir.x*to_food.x + dir.y*to_food.y )) / PI, //angle to food
                     float(state.score),
                     1.f
             }
@@ -95,17 +124,16 @@ pos AI_Snake_Agent::getNextDirection(const Snake_State &state) {
         return {1, 0};
     }
     //this should not happen, but move as usual
-    return state.snake.front() - *std::next(state.snake.begin(), 1);
+    return dir;
 }
 
-int getDistance(pos start, pos dir, const std::function<bool(pos)> &check, int max) {
-    int res = 0;
-    for (pos c = start; res < max; c = c + dir) {
-        if (check(c)) {
-            return res;
-        }
-        res++;
-    }
 
-    return res;
+bool is_obstacle(Snake_State state, pos to_check) {
+    return to_check.x < 0 || to_check.x >= state.w || to_check.y < 0 || to_check.y >= state.h || std::find(state.snake.begin(), state.snake.end(), to_check) != state.snake.end();
+}
+
+
+int test_network_snake(Network n){
+    AI_Snake_Agent asn(std::move(n));
+    return runSnake(reinterpret_cast<Snake_Agent *>(&asn), 31, 31);
 }

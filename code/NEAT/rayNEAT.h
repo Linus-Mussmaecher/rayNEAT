@@ -24,6 +24,7 @@
 #include <utility>
 #include <set>
 #include <unordered_set>
+#include <thread>
 
 using std::vector, std::array, std::map, std::string, std::list, std::pair, std::set, std::unordered_set;
 
@@ -296,12 +297,14 @@ public:
     string folderpath;
     //current generation is saved to a file every nth generation
     unsigned int save_intervall = 10;
+    //number of threads to be used when evaluating networks
+    int threads = 10;
 
     // ------------ gene providers for networks ------------
 
     //returns a Node_Gene with the requested ID (will fail if the id doesnt exist)
     Node_Gene request_node_gene(node_id id);
-    //returns a node to split the passed connection gene //TODO: Implement reusing of nodes
+    //returns a node to split the passed connection gene
     Node_Gene request_node_gene(Connection_Gene split);
 
     //returns a connection with the requested weight from node start to node end, registering it with the archives if neccessary
