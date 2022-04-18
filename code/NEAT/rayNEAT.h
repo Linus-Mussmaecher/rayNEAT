@@ -359,8 +359,6 @@ private:
     //assinges each network in the networks list to a species in the species list. May create new species to accomodate all networks.
     //May remove extince species or species that haven't innovated in a while
     void assign_networks_to_species();
-    //comparison function that, when used with std::sort, sorts the network list by descending fitness
-    static bool sort_by_fitness_desc(const Network &n1, const Network &n2) ;
 };
 
 /*   +------------------------------------------------------------+

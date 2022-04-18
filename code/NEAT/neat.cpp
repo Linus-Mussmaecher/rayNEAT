@@ -109,7 +109,7 @@ void Neat_Instance::run_neat(pair<float, float> (*compete_networks)(Network, Net
                 }
             }
             //this network has fought all other networks (except itself), so we can now calculate its total fitness
-            networks[i].setFitness(sums[i] / float(repetitions));
+            networks[i].setFitness(std::max(sums[i] / float(repetitions), std::numeric_limits<float>::min()));
         }
     });
 }
@@ -406,6 +406,3 @@ vector<Network> Neat_Instance::get_networks_sorted() {
     return networks;
 }
 
-bool Neat_Instance::sort_by_fitness_desc(const Network &n1, const Network &n2) {
-    return n1.getFitness() > n2.getFitness() ;
-}

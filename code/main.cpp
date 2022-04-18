@@ -8,5 +8,8 @@
 int main() {
     SetRandomSeed(time(nullptr));
 
-    testSnake();
+    //testSnake();
+
+    visualize_snake();
+
 }
