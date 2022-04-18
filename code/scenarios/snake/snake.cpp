@@ -41,14 +41,7 @@ void visualize_snake() {
 
     AI_Snake_Agent asn(n);
     User_Snake_Agent usn;
-    Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run_visual();
-
-    while (!WindowShouldClose()) {
-        BeginDrawing();
-        ClearBackground(WHITE);
-        n.draw({20, 20, 760, 560});
-        EndDrawing();
-    }
+    Snake_Game(reinterpret_cast<Snake_Agent *>(&usn), 16, 16).run_visual();
 }
 
 
@@ -66,8 +59,8 @@ bool operator==(pos a, pos b) {
 }
 
 Snake_Game::Snake_Game(Snake_Agent *agent, const int w, const int h) : agent(agent), w(w), h(h), score(0), fitness(0),
-                                                                       food_dist(0),
-                                                                       stagnation_counter(w/2 + h/2),
+                                                                       food_dist(w / 2 + h / 2 - 3),
+                                                                       stagnation_counter(0),
                                                                        food({w / 2, h / 2}),
                                                                        snake() {
     snake.push_front({1, 1});
@@ -79,9 +72,13 @@ bool Snake_Game::step() {
     pos next = snake.front() + agent->getNextDirection(*this);
     //check for food
     if (next == food) {
-        //calculate increases to score & fitness
+        //calculate increase to fitness
+        //base for finding the food
         float base_reward = 0.5f - 0.4f * std::max(1.f, float(score) / 20.f);
-        fitness += base_reward + (1.f - base_reward) * (1.f - float(stagnation_counter) / float(food_dist));
+        //rest is awarded for efficiency. shortest possible path -> full point. Double length or longer -> no bonus
+        fitness += base_reward +
+                   (1.f - base_reward) * std::max(1.f - float(stagnation_counter - food_dist) / float(food_dist), 0.f);
+        //increase score
         score++;
         //re-place food
         food = {GetRandomValue(0, w - 1), GetRandomValue(0, h - 1)};
@@ -92,22 +89,19 @@ bool Snake_Game::step() {
         snake.pop_back();
     }
     stagnation_counter++;
-    //check for out of bounds
-    if (next.x < 0 || next.y < 0 || next.x >= w || next.y >= h) {
-        running = false;
-    }
-    //check for self-collision
-    if (std::find(snake.begin(), snake.end(), next) != snake.end()) {
+
+    if (is_obstacle(next)) {
         running = false;
     }
 
     snake.push_front(next);
 
-    return running && stagnation_counter < 2 * food_dist;
+    return running && stagnation_counter < food_dist + w + h;
 }
 
 
 bool Snake_Game::is_obstacle(pos to_check) const {
+    //check for out-of-bounds and self-collision
     return to_check.x < 0 || to_check.x >= w || to_check.y < 0 || to_check.y >= h ||
            std::find(snake.begin(), snake.end(), to_check) != snake.end();
 }
@@ -126,7 +120,8 @@ float Snake_Game::run() {
 float Snake_Game::run_visual() {
     while (step() && !WindowShouldClose()) {
         BeginDrawing();
-        draw({0, 0, float(GetScreenWidth()), float(GetScreenHeight())});
+        ClearBackground(WHITE);
+        draw({10, 10, float(GetScreenWidth() - 20), float(GetScreenHeight() - 20)});
         EndDrawing();
     }
 
@@ -139,11 +134,6 @@ float Snake_Game::run_visual() {
 }
 
 void Snake_Game::draw(Rectangle target) {
-    DrawRectangle(
-            int(target.x), int(target.y),
-            int(target.width), int(target.height),
-            WHITE
-    );
 
     int squaresize = int(std::min(target.width / float(w), target.height / float(h)));
 
