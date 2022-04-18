@@ -17,6 +17,7 @@
 #include <iostream>
 #include <functional>
 #include <algorithm>
+#include <limits>
 #include <numeric>
 #include <sstream>
 #include <fstream>
@@ -315,11 +316,11 @@ public:
     // ------------ Execution options ------------
 
     //performs the NEAT algorithm. Each network's fitness is evaluated with the provided function
-    void run_neat(int (*evalNetwork)(Network));
+    void run_neat(float (*evalNetwork)(Network));
 
     //performs the NEAT algorithm. Each networks's fitness is evaluated by letting them compete with each other network
     //using the provided function and averaging fitness results
-    void run_neat(pair<int, int> (*compete_networks)(Network, Network));
+    void run_neat(pair<float, float> (*compete_networks)(Network, Network));
 
     // ------------ Output ------------
 

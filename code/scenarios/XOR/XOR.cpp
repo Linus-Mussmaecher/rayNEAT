@@ -39,12 +39,12 @@ void testXOR(){
     }
 }
 
-int testNetworkXOR(Network n){
+float testNetworkXOR(Network n){
     float res = 0;
     for (int a = 0; a < 2; a++) {
         for (int b = 0; b < 2; b++) {
             res += abs(n.calculate({float(a), float(b), 1.f})[0] - float(a ^ b));
         }
     }
-    return int((4.f - res) * (4.f - res) * 100);
+    return (4.f - res) * (4.f - res) * 100;
 }

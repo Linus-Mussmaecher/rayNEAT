@@ -9,6 +9,6 @@
 
 void testXOR();
 
-int testNetworkXOR(Network n);
+float testNetworkXOR(Network n);
 
 #endif //RAYNEAT_XOR_H

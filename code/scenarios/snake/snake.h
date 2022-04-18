@@ -49,9 +49,9 @@ private:
 
 void testSnake();
 
-int runSnake(Snake_Agent* agent, int w = 31, int h = 31);
+float runSnake(Snake_Agent* agent, int w = 31, int h = 31);
 
-int test_network_snake(Network n);
+float test_network_snake(Network n);
 
 //returns if the passed x/y coordinates are out of bounds of part of the snake
 bool is_obstacle(Snake_State state, pos to_check);

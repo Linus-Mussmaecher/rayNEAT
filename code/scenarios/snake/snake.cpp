@@ -14,8 +14,8 @@ void testSnake(){
     for(int i = 0; i < 20; i++){
         time = clock();
 
-        Neat_Instance neat = Neat_Instance(6, 4, 250);
-        neat.generation_target = 250;
+        Neat_Instance neat = Neat_Instance(6, 3, 150);
+        neat.generation_target = 150;
         neat.node_count_exponent = 0.1;
         if(i >= 15) neat.activation_function = &tanhf;
         neat.folderpath = "./snake_" + std::to_string(i);
@@ -43,7 +43,7 @@ bool operator==(pos a, pos b) {
 }
 
 
-int runSnake(Snake_Agent *agent, int w, int h) {
+float runSnake(Snake_Agent *agent, int w, int h) {
     //Init
     Snake_State state = {w, h, 0, {5,5}, { {1,1}, {2,1} }};
     bool fail = false;
@@ -71,7 +71,12 @@ int runSnake(Snake_Agent *agent, int w, int h) {
         state.snake.push_front(next);
     }
 
-    return state.score;
+    float dist_max = sqrtf(float( w * w + h * h));
+    pos fruit_rel = state.food - state.snake.front();
+    float dist_fruit = sqrtf(float( fruit_rel.x * fruit_rel.x + fruit_rel.y * fruit_rel.y ));
+
+    //return the score. Award [0,1[ bonus points for reducing distance to next fruit
+    return float(state.score) + (1.f - dist_fruit / dist_max);
 }
 
 
@@ -112,16 +117,13 @@ pos AI_Snake_Agent::getNextDirection(const Snake_State &state) {
     int max_index = int(std::distance(res.begin(), std::max_element(res.begin(), res.end())));
 
     if (max_index == 0) {
-        return {0, -1};
+        return {dir.y, - dir.x};
     }
     if (max_index == 1) {
-        return {0, 1};
+        return dir;
     }
     if (max_index == 2) {
-        return {-1, 0};
-    }
-    if (max_index == 3) {
-        return {1, 0};
+        return {- dir.y, dir.x};
     }
     //this should not happen, but move as usual
     return dir;
@@ -133,7 +135,7 @@ bool is_obstacle(Snake_State state, pos to_check) {
 }
 
 
-int test_network_snake(Network n){
+float test_network_snake(Network n){
     AI_Snake_Agent asn(std::move(n));
     return runSnake(reinterpret_cast<Snake_Agent *>(&asn), 31, 31);
 }

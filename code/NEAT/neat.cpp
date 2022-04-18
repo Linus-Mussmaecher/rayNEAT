@@ -82,34 +82,34 @@ Neat_Instance::Neat_Instance(const string &file) {
 
 }
 
-void Neat_Instance::run_neat(int (*evalNetwork)(Network)) {
+void Neat_Instance::run_neat(float (*evalNetwork)(Network)) {
     run_neat_helper([evalNetwork, this]() {
         for (Network &n: networks) {
-            int f = 0;
+            float sum = 0;
             for (int i = 0; i < repetitions; i++) {
-                f += evalNetwork(n);
+                sum += evalNetwork(n);
             }
-            n.setFitness(std::max(float(f) / float(repetitions), 1.f));
+            n.setFitness(std::max(sum / float(repetitions), std::numeric_limits<float>::min()));
         }
     });
 }
 
 
-void Neat_Instance::run_neat(pair<int, int> (*compete_networks)(Network, Network)) {
+void Neat_Instance::run_neat(pair<float, float> (*compete_networks)(Network, Network)) {
     run_neat_helper([compete_networks, this]() {
-        vector<int> f;
-        f.resize(networks.size());
+        vector<float> sums;
+        sums.resize(networks.size());
         for (int i = 0; i < networks.size(); i++) {
             for (int j = i + 1; j < networks.size(); j++) {
                 for (int r = 0; r < repetitions; r++) {
                     auto[n1_fitness, n2_fitness] = compete_networks(networks[i], networks[j]);
                     auto[n1_fitnessb, n2_fitnessb] = compete_networks(networks[j], networks[i]);
-                    f[i] += n1_fitness + n1_fitnessb;
-                    f[j] += n2_fitness + n2_fitnessb;
+                    sums[i] += n1_fitness + n1_fitnessb;
+                    sums[j] += n2_fitness + n2_fitnessb;
                 }
             }
             //this network has fought all other networks (except itself), so we can now calculate its total fitness
-            networks[i].setFitness(float(f[i]) / float(repetitions));
+            networks[i].setFitness(sums[i] / float(repetitions));
         }
     });
 }
