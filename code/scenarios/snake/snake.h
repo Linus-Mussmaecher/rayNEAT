@@ -44,28 +44,39 @@ private:
 public:
     Snake_Game(Snake_Agent* agent, int w, int h);
 
-    bool step();
-
-    void draw(Rectangle target);
-
+    //runs a game of snake, returning the fitness.
     float run();
+    //runs a game equivalent to the run() function while drawing every step to the raylib buffer 1 step = 1 frame
     float run_visual();
-
+    //returns wether or not the selected position is a failstate (snake body or out-of-bounds)
     [[nodiscard]] bool is_obstacle(pos to_check) const;
-
+    //a list of coordinates that correspond to the body parts of the snake
     list<pos> snake;
+    //the position of the current food-target
     pos food;
 private:
+    //performs a game step
+    bool step();
+    //draws the current gamestate to the raylib buffer BeginDrawing() must already be entered
+    void draw(Rectangle target);
+
+    //the width of the playing field
     const int w;
+    //the height of the playing field
     const int h;
-
+    //the amount of food already collected
     int score;
+    //the amount of moves performed since the last food consumption
     int stagnation_counter;
-
+    //the distance from the snake-head to the food at the time of food placement
+    int food_dist;
+    //the "fitness" of the current agent, taking into account score and efficiency
+    float fitness;
+    //the snake agent from wich the moves are requested
     Snake_Agent* agent;
 };
 
-void testSnake();
+void evolve_snake();
 
 void visualize_snake();
 
