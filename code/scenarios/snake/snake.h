@@ -35,6 +35,8 @@ public:
     explicit Basic_AI_Snake_Agent(Network client);
 
     virtual pos getNextDirection(const Snake_Game &state);
+
+    static float test(const Network& n);
 private:
     Network client;
 };
@@ -44,6 +46,8 @@ public:
     explicit Ray_AI_Snake_Agent(Network client);
 
     virtual pos getNextDirection(const Snake_Game &state);
+
+    static float test(const Network& n);
 private:
     Network client;
 };
@@ -60,7 +64,7 @@ public:
     float run_visual();
     //returns wether or not the selected position is a failstate (snake body or out-of-bounds)
     [[nodiscard]] bool is_obstacle(pos to_check) const;
-    //returns the distance to the next square that is blocked in dir-steps. (0 -> start is blocked)
+    //returns the distance to the next square that is blocked in dir-steps. Does not check start itself
     [[nodiscard]] int obstacle_ray(pos start, pos dir) const;
     //returns the diagonal of the playing field
     [[nodiscard]] inline float diagonal() const;
@@ -93,8 +97,6 @@ private:
 void evolve_snake();
 
 void visualize_snake();
-
-float test_network_snake(Network n);
 
 
 #endif //RAYNEAT_SNAKE_H

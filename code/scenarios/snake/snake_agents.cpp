@@ -56,6 +56,11 @@ pos Basic_AI_Snake_Agent::getNextDirection(const Snake_Game &state) {
     return dir;
 }
 
+float Basic_AI_Snake_Agent::test(const Network& n) {
+    Basic_AI_Snake_Agent asn(n);
+    return Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run();
+}
+
 Ray_AI_Snake_Agent::Ray_AI_Snake_Agent(Network client) : client(std::move(client)) {}
 
 pos Ray_AI_Snake_Agent::getNextDirection(const Snake_Game &state) {
@@ -64,14 +69,15 @@ pos Ray_AI_Snake_Agent::getNextDirection(const Snake_Game &state) {
 
     vector<float> res = client.calculate(
             {
-                    float(state.obstacle_ray(state.snake.front(), dir)) / state.diagonal(), //obstacle front
-                    float(state.obstacle_ray(state.snake.front(),  pos{dir.y, -dir.x})) / state.diagonal(), //obstacle left
-                    float(state.obstacle_ray(state.snake.front(),  pos{-dir.y, dir.x})) / state.diagonal(), //obstacle right
+                    -1.f + 10.f / (5.f + float(state.obstacle_ray(state.snake.front(), dir))), //obstacle front
+                    -1.f + 10.f / (5.f + float(state.obstacle_ray(state.snake.front(), pos{dir.y, -dir.x}))), //obstacle left
+                    -1.f + 10.f / (5.f + float(state.obstacle_ray(state.snake.front(), pos{-dir.y, dir.x}))), //obstacle right
                     atan2(
                             float(dir.x * to_food.y - dir.y * to_food.x),
                             float(dir.x * to_food.x + dir.y * to_food.y)
                     ) / PI, //angle to food
-                    sqrtf(float(to_food.x * to_food.x + to_food.y * to_food.y)) / state.diagonal(), //normalized distance to food
+                    sqrtf(float(to_food.x * to_food.x + to_food.y * to_food.y)) /
+                    state.diagonal(), //normalized distance to food
                     1.f
             }
     );
@@ -89,4 +95,9 @@ pos Ray_AI_Snake_Agent::getNextDirection(const Snake_Game &state) {
     }
     //this should not happen, but move as usual
     return dir;
+}
+
+float Ray_AI_Snake_Agent::test(const Network &n) {
+    Ray_AI_Snake_Agent asn(n);
+    return Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run();
 }

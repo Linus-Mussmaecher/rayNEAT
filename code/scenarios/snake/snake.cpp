@@ -20,7 +20,7 @@ void evolve_snake() {
         neat.repetitions = 100;
         if (i >= 15) neat.activation_function = &tanhf;
         neat.folderpath = "./snake_" + std::to_string(i);
-        neat.run_neat(&test_network_snake);
+        neat.run_neat(reinterpret_cast<float (*)(Network)>(&Basic_AI_Snake_Agent::test));
 
         std::cout << "\n\n Finished first run in " << float(clock() - time) / CLOCKS_PER_SEC << "s.\n\n";
     }
@@ -99,11 +99,6 @@ bool Snake_Game::step() {
     return running && stagnation_counter < food_dist + w + h;
 }
 
-float test_network_snake(Network n) {
-    Basic_AI_Snake_Agent asn(std::move(n));
-    return Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run();
-}
-
 float Snake_Game::run() {
     while (step());
 
@@ -140,8 +135,9 @@ bool Snake_Game::is_obstacle(pos to_check) const {
 
 int Snake_Game::obstacle_ray(pos start, pos dir) const {
     int d = 0;
-    while(!is_obstacle(start)){
-        start = start + dir;
+    pos to_check = start + dir;
+    while(!is_obstacle(to_check)){
+        to_check = to_check + dir;
         d++;
     }
     return d;
