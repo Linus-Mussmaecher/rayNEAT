@@ -30,14 +30,24 @@ public:
     virtual pos getNextDirection(const Snake_Game &state);
 };
 
-class AI_Snake_Agent{
+class Basic_AI_Snake_Agent{
 public:
-    explicit AI_Snake_Agent(Network client);
+    explicit Basic_AI_Snake_Agent(Network client);
 
     virtual pos getNextDirection(const Snake_Game &state);
 private:
     Network client;
 };
+
+class Ray_AI_Snake_Agent{
+public:
+    explicit Ray_AI_Snake_Agent(Network client);
+
+    virtual pos getNextDirection(const Snake_Game &state);
+private:
+    Network client;
+};
+
 
 class Snake_Game {
 private:
@@ -50,6 +60,10 @@ public:
     float run_visual();
     //returns wether or not the selected position is a failstate (snake body or out-of-bounds)
     [[nodiscard]] bool is_obstacle(pos to_check) const;
+    //returns the distance to the next square that is blocked in dir-steps. (0 -> start is blocked)
+    [[nodiscard]] int obstacle_ray(pos start, pos dir) const;
+    //returns the diagonal of the playing field
+    [[nodiscard]] inline float diagonal() const;
     //a list of coordinates that correspond to the body parts of the snake
     list<pos> snake;
     //the position of the current food-target

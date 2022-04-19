@@ -23,7 +23,6 @@ void evolve_snake() {
         neat.run_neat(&test_network_snake);
 
         std::cout << "\n\n Finished first run in " << float(clock() - time) / CLOCKS_PER_SEC << "s.\n\n";
-
     }
 
 
@@ -31,7 +30,6 @@ void evolve_snake() {
 
 
 void visualize_snake() {
-
     Neat_Instance neat = Neat_Instance("./snake_0/NEAT_Generation_150.rn");
 
     Network n = neat.get_networks_sorted()[0];
@@ -39,7 +37,7 @@ void visualize_snake() {
     InitWindow(800, 600, "Snake");
     SetTargetFPS(8);
 
-    AI_Snake_Agent asn(n);
+    Basic_AI_Snake_Agent asn(n);
     User_Snake_Agent usn;
     float score = Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 16, 16).run_visual();
     std::cout << "Fitness-Score: " << score << "\n";
@@ -64,6 +62,7 @@ Snake_Game::Snake_Game(Snake_Agent *agent, const int w, const int h) : agent(age
                                                                        stagnation_counter(0),
                                                                        food({w / 2, h / 2}),
                                                                        snake() {
+    //init first two body parts of snake to ensure pairwise iteration does not throw errors
     snake.push_front({1, 1});
     snake.push_front({2, 1});
 }
@@ -100,11 +99,9 @@ bool Snake_Game::step() {
     return running && stagnation_counter < food_dist + w + h;
 }
 
-
-bool Snake_Game::is_obstacle(pos to_check) const {
-    //check for out-of-bounds and self-collision
-    return to_check.x < 0 || to_check.x >= w || to_check.y < 0 || to_check.y >= h ||
-           std::find(snake.begin(), snake.end(), to_check) != snake.end();
+float test_network_snake(Network n) {
+    Basic_AI_Snake_Agent asn(std::move(n));
+    return Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run();
 }
 
 float Snake_Game::run() {
@@ -133,6 +130,27 @@ float Snake_Game::run_visual() {
     //return score + [0,1[ bonus based on distance to next food (to reward more incremental progression)
     return float(fitness) + (1.f - foo_distance / max_distance);
 }
+
+
+bool Snake_Game::is_obstacle(pos to_check) const {
+    //check for out-of-bounds and self-collision
+    return to_check.x < 0 || to_check.x >= w || to_check.y < 0 || to_check.y >= h ||
+           std::find(snake.begin(), snake.end(), to_check) != snake.end();
+}
+
+int Snake_Game::obstacle_ray(pos start, pos dir) const {
+    int d = 0;
+    while(!is_obstacle(start)){
+        start = start + dir;
+        d++;
+    }
+    return d;
+}
+
+inline float Snake_Game::diagonal() const{
+    return sqrtf(float(w * w + h * h));
+}
+
 
 void Snake_Game::draw(Rectangle target) {
 
@@ -220,63 +238,4 @@ void Snake_Game::draw(Rectangle target) {
             float(squaresize) / 3.f,
             RED
     );
-}
-
-
-pos User_Snake_Agent::getNextDirection(const Snake_Game &state) {
-    int key = GetKeyPressed();
-    if (key == KEY_UP) {
-        return {0, -1};
-    }
-    if (key == KEY_DOWN) {
-        return {0, 1};
-    }
-    if (key == KEY_LEFT) {
-        return {-1, 0};
-    }
-    if (key == KEY_RIGHT) {
-        return {1, 0};
-    }
-    //no key pressed -> move as usual
-    return state.snake.front() - *std::next(state.snake.begin(), 1);
-}
-
-AI_Snake_Agent::AI_Snake_Agent(Network client) : client(std::move(client)) {}
-
-pos AI_Snake_Agent::getNextDirection(const Snake_Game &state) {
-    pos dir = state.snake.front() - *std::next(state.snake.begin(), 1);
-    pos to_food = state.food - state.snake.front();
-
-    vector<float> res = client.calculate(
-            {
-                    state.is_obstacle(state.snake.front() + dir) ? 1.f : 0.f, //obstacle in front
-                    state.is_obstacle(state.snake.front() + pos{dir.y, -dir.x}) ? 1.f : 0.f, //obstacle to the left
-                    state.is_obstacle(state.snake.front() + pos{-dir.y, dir.x}) ? 1.f : 0.f, //obstacle to the right
-                    atan2(
-                            float(dir.x * to_food.y - dir.y * to_food.x),
-                            float(dir.x * to_food.x + dir.y * to_food.y)
-                    ) / PI, //angle to food
-                    1.f
-            }
-    );
-
-    int max_index = int(std::distance(res.begin(), std::max_element(res.begin(), res.end())));
-
-    if (max_index == 0) {
-        return {dir.y, -dir.x};
-    }
-    if (max_index == 1) {
-        return dir;
-    }
-    if (max_index == 2) {
-        return {-dir.y, dir.x};
-    }
-    //this should not happen, but move as usual
-    return dir;
-}
-
-
-float test_network_snake(Network n) {
-    AI_Snake_Agent asn(std::move(n));
-    return Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 31, 31).run();
 }
