@@ -11,13 +11,13 @@ void evolve_snake() {
 
     clock_t time;
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 20; i++) {
         time = clock();
 
-        Neat_Instance neat = Neat_Instance(5, 3, 150);
-        neat.generation_target = 100;
+        Neat_Instance neat = Neat_Instance(5, 3, 250);
+        neat.generation_target = 250;
         neat.node_count_exponent = 0.1;
-        neat.repetitions = 50;
+        neat.repetitions = 100;
         if (i >= 15) neat.activation_function = &tanhf;
         neat.folderpath = "./snake_" + std::to_string(i);
         neat.run_neat(&test_network_snake);
@@ -32,7 +32,7 @@ void evolve_snake() {
 
 void visualize_snake() {
 
-    Neat_Instance neat = Neat_Instance("./snake_0/NEAT_Generation_100.rn");
+    Neat_Instance neat = Neat_Instance("./snake_0/NEAT_Generation_150.rn");
 
     Network n = neat.get_networks_sorted()[0];
 
@@ -41,7 +41,8 @@ void visualize_snake() {
 
     AI_Snake_Agent asn(n);
     User_Snake_Agent usn;
-    Snake_Game(reinterpret_cast<Snake_Agent *>(&usn), 16, 16).run_visual();
+    float score = Snake_Game(reinterpret_cast<Snake_Agent *>(&asn), 16, 16).run_visual();
+    std::cout << "Fitness-Score: " << score << "\n";
 }
 
 
@@ -74,7 +75,7 @@ bool Snake_Game::step() {
     if (next == food) {
         //calculate increase to fitness
         //base for finding the food
-        float base_reward = 0.5f - 0.4f * std::max(1.f, float(score) / 20.f);
+        float base_reward = 0.6f; //0.5f - 0.4f * std::max(1.f, float(score) / 20.f);
         //rest is awarded for efficiency. shortest possible path -> full point. Double length or longer -> no bonus
         fitness += base_reward +
                    (1.f - base_reward) * std::max(1.f - float(stagnation_counter - food_dist) / float(food_dist), 0.f);

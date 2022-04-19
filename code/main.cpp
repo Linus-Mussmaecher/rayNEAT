@@ -8,6 +8,8 @@
 int main() {
     SetRandomSeed(time(nullptr));
 
+    //evolve_xor();
+
     //evolve_snake();
 
     visualize_snake();

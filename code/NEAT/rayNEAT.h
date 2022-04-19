@@ -298,8 +298,8 @@ public:
     string folderpath;
     //current generation is saved to a file every nth generation
     unsigned int save_intervall = 10;
-    //number of threads to be used when evaluating networks
-    int threads = 10;
+    //number of thread_count to be used when evaluating networks
+    int thread_count = 10;
 
     // ------------ gene providers for networks ------------
 

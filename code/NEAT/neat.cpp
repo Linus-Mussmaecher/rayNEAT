@@ -84,12 +84,36 @@ Neat_Instance::Neat_Instance(const string &file) {
 
 void Neat_Instance::run_neat(float (*evalNetwork)(Network)) {
     run_neat_helper([evalNetwork, this]() {
+
+        // Single threaded version
+        /*
         for (Network &n: networks) {
             float sum = 0;
             for (int i = 0; i < repetitions; i++) {
                 sum += evalNetwork(n);
             }
             n.setFitness(std::max(sum / float(repetitions), std::numeric_limits<float>::min()));
+        }
+        */
+
+        vector<std::thread> threads;
+
+        for (int i = 0; i < thread_count; i++) {
+            threads.emplace_back([&](size_t start, size_t end) {
+
+                for(size_t i = start; i < end; i++){
+                    float sum = 0;
+                    for (int j = 0; j < repetitions; j++) {
+                        sum += evalNetwork(networks[i]);
+                    }
+                    networks[i].setFitness(std::max(sum / float(repetitions), std::numeric_limits<float>::min()));
+                }
+
+            }, networks.size() / 10 * i, networks.size() / 10 * (i + 1));
+        }
+
+        for (int i = 0; i < thread_count; i++) {
+            threads[i].join();
         }
     });
 }
@@ -102,8 +126,8 @@ void Neat_Instance::run_neat(pair<float, float> (*compete_networks)(Network, Net
         for (int i = 0; i < networks.size(); i++) {
             for (int j = i + 1; j < networks.size(); j++) {
                 for (int r = 0; r < repetitions; r++) {
-                    auto[n1_fitness, n2_fitness] = compete_networks(networks[i], networks[j]);
-                    auto[n1_fitnessb, n2_fitnessb] = compete_networks(networks[j], networks[i]);
+                    auto [n1_fitness, n2_fitness] = compete_networks(networks[i], networks[j]);
+                    auto [n1_fitnessb, n2_fitnessb] = compete_networks(networks[j], networks[i]);
                     sums[i] += n1_fitness + n1_fitnessb;
                     sums[j] += n2_fitness + n2_fitnessb;
                 }
@@ -157,11 +181,14 @@ void Neat_Instance::assign_networks_to_species() {
     });
 
     //remove all species but top 2 if there is stagnation in the entire population
-    if(last_innovation_generation + population_stagnation_threshold < generation_number){
-        species.sort([](const Species &s1, const Species &s2){return s1.last_innovation_fitness > s2.last_innovation_fitness;});
-        while(species.size() > 2){
+    if (last_innovation_generation + population_stagnation_threshold < generation_number) {
+        species.sort([](const Species &s1, const Species &s2) {
+            return s1.last_innovation_fitness > s2.last_innovation_fitness;
+        });
+        while (species.size() > 2) {
             species.pop_back();
         }
+        last_innovation_generation = generation_number;
     }
 }
 
@@ -274,7 +301,7 @@ void Neat_Instance::run_neat_helper(const std::function<void()> &evalNetworks) {
         evalNetworks();
 
         //sort by descending fitness -> all later species will be sorted
-        std::sort(networks.begin(), networks.end(),[&](const Network &n1, const Network &n2){
+        std::sort(networks.begin(), networks.end(), [&](const Network &n1, const Network &n2) {
             return
                     n1.getFitness() * pow(float(n1.getNodes().size()), node_count_exponent)
                     >

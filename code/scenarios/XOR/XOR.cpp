@@ -4,11 +4,11 @@
 
 #include "XOR.h"
 
-void testXOR(){
+void evolve_xor(){
 
     Neat_Instance neatInstance = Neat_Instance(3, 1, 150);
     //Neat_Instance neatInstance = Neat_Instance("./XOR/NEAT_Generation_100.rn");
-    neatInstance.generation_target = 150;
+    neatInstance.generation_target = 20;
     neatInstance.node_count_exponent = 0.2;
     neatInstance.elimination_percentage = 0.5f;
     neatInstance.folderpath = "./XOR";

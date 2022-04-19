@@ -7,7 +7,7 @@
 
 #include "../../NEAT/rayNEAT.h"
 
-void testXOR();
+void evolve_xor();
 
 float testNetworkXOR(Network n);
 
