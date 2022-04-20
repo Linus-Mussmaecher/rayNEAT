@@ -30,9 +30,9 @@ void evolve_snake() {
 
 
 void visualize_snake() {
-    Neat_Instance neat = Neat_Instance("./snake_0/NEAT_Generation_150.rn");
-
+    Neat_Instance neat = Neat_Instance("./../../resources/NEAT_snake_09_39.rn");//  ./snake_0/NEAT_Generation_150.rn");
     Network n = neat.get_networks_sorted()[0];
+    std::cout << "Presenting network with a score of " << n.getFitness() << ".\n";
 
     InitWindow(800, 600, "Snake");
     SetTargetFPS(8);
@@ -136,14 +136,14 @@ bool Snake_Game::is_obstacle(pos to_check) const {
 int Snake_Game::obstacle_ray(pos start, pos dir) const {
     int d = 0;
     pos to_check = start + dir;
-    while(!is_obstacle(to_check)){
+    while (!is_obstacle(to_check)) {
         to_check = to_check + dir;
         d++;
     }
     return d;
 }
 
-inline float Snake_Game::diagonal() const{
+float Snake_Game::diagonal() const {
     return sqrtf(float(w * w + h * h));
 }
 
@@ -170,7 +170,7 @@ void Snake_Game::draw(Rectangle target) {
     }
 
     auto p1 = snake.begin();
-    auto p2 = std::next(snake.begin());
+    auto p2 = ++snake.begin();
 
     while (p2 != snake.end()) {
         //body

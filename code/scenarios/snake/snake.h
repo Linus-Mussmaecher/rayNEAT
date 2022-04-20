@@ -67,7 +67,7 @@ public:
     //returns the distance to the next square that is blocked in dir-steps. Does not check start itself
     [[nodiscard]] int obstacle_ray(pos start, pos dir) const;
     //returns the diagonal of the playing field
-    [[nodiscard]] inline float diagonal() const;
+    [[nodiscard]] float diagonal() const;
     //a list of coordinates that correspond to the body parts of the snake
     list<pos> snake;
     //the position of the current food-target

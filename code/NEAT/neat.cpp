@@ -395,9 +395,13 @@ void Neat_Instance::save() const {
     std::filesystem::create_directories(folderpath);
     string filepath;
     filepath.append(folderpath);
-    filepath.append("/NEAT_Generation_");
+    filepath.append("/");
+    filepath.append(split(folderpath, "/").back()); //name of directory for identification
+    filepath.append("_g");
     filepath.append(std::to_string(generation_number));
-    filepath.append(".rn");
+    filepath.append("_f");
+    filepath.append(std::to_string(int(last_innovation_fitness)));
+    filepath.append(".neat");
     //open file
     std::ofstream savefile;
     savefile.open(filepath);
