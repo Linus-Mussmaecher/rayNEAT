@@ -10,8 +10,8 @@ int main() {
 
     //evolve_xor();
 
-    //evolve_snake();
+    // evolve_snake();
 
-    visualize_snake();
+    visualize_snake("./snake_0/snake_0_g110_f39.neat");
 
 }

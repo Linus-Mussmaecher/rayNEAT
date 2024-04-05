@@ -96,7 +96,7 @@ private:
 
 void evolve_snake();
 
-void visualize_snake();
+void visualize_snake(std::string file_path);
 
 
 #endif //RAYNEAT_SNAKE_H

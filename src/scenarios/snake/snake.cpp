@@ -29,8 +29,8 @@ void evolve_snake() {
 }
 
 
-void visualize_snake() {
-    Neat_Instance neat = Neat_Instance("./../../resources/NEAT_snake_09_39.rn");//  ./snake_0/NEAT_Generation_150.rn");
+void visualize_snake(std::string file_path) {
+    Neat_Instance neat = Neat_Instance(file_path);//  ./snake_0/NEAT_Generation_150.rn");
     Network n = neat.get_networks_sorted()[0];
     std::cout << "Presenting network with a score of " << n.getFitness() << ".\n";
 
